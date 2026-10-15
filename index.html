@@ -300,6 +300,28 @@
     }
 
     .batch-card .actions button { min-width: 0; padding: 10px 8px; font-size: .85rem; }
+
+    .auto-box {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid #ffd3c4;
+      background: #fff8f5;
+      border-radius: 12px;
+    }
+    .auto-box h3 { margin: 0 0 10px; font-size: .98rem; }
+    .auto-box ol { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; font-size: .88rem; }
+    .auto-box li { margin-bottom: 10px; }
+    .bm-link {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: #25d366;
+      color: #06361b;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: grab;
+    }
   </style>
 </head>
 
@@ -437,6 +459,35 @@
         Cada mensagem vai com o texto e o link de afiliado; o WhatsApp mostra sozinho o cartão com a foto e o título do produto, como nas suas conversas.
         Clique em “Enviar todas pelo WhatsApp”: a primeira abre pronta, você escolhe a conversa/grupo e envia; depois o mesmo botão abre a próxima, até acabar.
         O WhatsApp não permite que um site envie várias mensagens sozinho — por isso a confirmação em cada uma.
+      </div>
+
+
+      <div class="auto-box" id="batchAuto" hidden>
+        <h3>🤖 Envio automático para o seu WhatsApp (1 clique)</h3>
+        <ol>
+          <li>
+            <strong>Uma única vez:</strong> arraste este botão para a barra de favoritos do navegador
+            (Ctrl+Shift+B mostra a barra):
+            <a href="#" id="waBookmarklet" class="bm-link" draggable="true">📌 Enviar promoções</a>
+          </li>
+          <li>
+            Seu número com DDI e DDD, para abrir a conversa “Você” direto (opcional):
+            <input id="waPhone" inputmode="numeric" placeholder="Ex.: 5511999999999" style="max-width:260px;margin-top:6px">
+          </li>
+          <li>
+            <button class="primary" id="waPrepare" type="button" style="margin-top:6px">🤖 Preparar envio automático</button>
+            — copia as mensagens e abre o WhatsApp Web.
+          </li>
+          <li>
+            Na aba do WhatsApp, abra a conversa de destino e <strong>clique no favorito “Enviar promoções”</strong>.
+            Ele pede uma confirmação (mostrando o nome da conversa) e envia cada promoção como uma mensagem separada, com intervalo de alguns segundos.
+          </li>
+        </ol>
+        <button class="secondary" id="waCopyScript" type="button">📋 Copiar script (alternativa sem favoritos)</button>
+        <div class="hint">
+          Automação não oficial do WhatsApp Web: para o seu próprio chat o risco é baixo, mas não é zero, e mudanças no layout do WhatsApp podem exigir ajuste.
+          O script para sozinho se algo não funcionar, informando em qual mensagem parou.
+        </div>
       </div>
 
       <div class="batch-grid" id="batchResults"></div>
@@ -1319,6 +1370,7 @@
       $("batchGenerate").disabled = true;
       $("batchActions").hidden = false;
       $("batchActionsHint").hidden = false;
+      $("batchAuto").hidden = false;
 
       const results = $("batchResults");
       results.textContent = "";
@@ -1360,6 +1412,201 @@
         await new Promise(r => setTimeout(r, 350));
       }
     });
+
+    // ============ Envio automático via favorito no WhatsApp Web ============
+    // Esta função roda DENTRO da aba do WhatsApp Web (como favorito/bookmarklet).
+    // Deve ser totalmente autocontida: não pode usar nada deste arquivo.
+    function waSender() {
+      const PREFIX = "PROMO-LOTE::";
+      const cfg = Object.assign({ previewWait: 4000, minGap: 3500, maxGap: 6500, confirmWait: 9000 }, window.__promoCfg || {});
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const q = sel => document.querySelector(sel);
+
+      const getComposer = () =>
+        q('footer [contenteditable="true"][data-tab="10"]') ||
+        q('footer [contenteditable="true"][role="textbox"]') ||
+        q('footer [contenteditable="true"]');
+
+      const getSendButton = () => {
+        const direct = q('footer button[aria-label="Enviar"]') || q('footer button[aria-label="Send"]') ||
+          q('footer [role="button"][aria-label="Enviar"]') || q('footer [role="button"][aria-label="Send"]');
+        if (direct) return direct;
+        const icon = q('footer [data-icon="send"]') || q('footer [data-icon="wds-ic-send-filled"]');
+        return icon ? icon.closest('button,[role="button"]') : null;
+      };
+
+      const chatTitle = () => {
+        const header = q("#main header") || q("header");
+        const el = header && (header.querySelector("span[title]") || header.querySelector('span[dir="auto"]'));
+        return (el && (el.getAttribute("title") || el.textContent) || "").trim();
+      };
+
+      // Painel de progresso (sem innerHTML: o WhatsApp bloqueia).
+      const box = document.createElement("div");
+      box.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;background:#111b21;color:#e9edef;" +
+        "border:1px solid #25d366;border-radius:10px;padding:12px 14px;font:14px Arial;max-width:300px;box-shadow:0 4px 16px #0008";
+      const line = document.createElement("div");
+      const stop = document.createElement("button");
+      stop.textContent = "⏹ Parar";
+      stop.style.cssText = "margin-top:8px;padding:6px 10px;border:0;border-radius:8px;background:#f05a28;color:#fff;cursor:pointer;font-weight:700";
+      box.append(line, stop);
+      let cancelled = false;
+      stop.onclick = () => { cancelled = true; line.textContent = "Parando após a mensagem atual…"; };
+      const say = t => { line.textContent = t; };
+      const finish = (t, ms) => { say(t); stop.remove(); setTimeout(() => box.remove(), ms || 12000); };
+
+      const fail = (index, reason) => {
+        finish("⚠️ Parei na mensagem " + (index + 1) + ": " + reason + (index > 0 ? " As " + index + " anteriores já foram enviadas." : " Nada foi enviado."), 60000);
+      };
+
+      async function setText(el, text) {
+        el.focus();
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false, null);
+        const dt = new DataTransfer();
+        dt.setData("text/plain", text);
+        el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+        await wait(500);
+        if (!(el.textContent || "").trim()) {
+          // Alternativa: digita linha por linha.
+          text.split("\n").forEach((ln, i) => {
+            if (i) document.execCommand("insertLineBreak");
+            if (ln) document.execCommand("insertText", false, ln);
+          });
+          await wait(400);
+        }
+        return (el.textContent || "").trim().length > 0;
+      }
+
+      (async () => {
+        if (!location.hostname.endsWith("whatsapp.com")) {
+          alert("Este favorito deve ser clicado na aba do WhatsApp Web (web.whatsapp.com), não aqui.");
+          return;
+        }
+
+        let raw = "";
+        try { raw = await navigator.clipboard.readText(); } catch { /* cai no prompt */ }
+        if (!raw.startsWith(PREFIX)) {
+          raw = prompt("Não consegui ler a área de transferência. Cole aqui o conteúdo copiado pelo gerador de promoções:") || "";
+        }
+        if (!raw.startsWith(PREFIX)) {
+          alert("Nenhum lote encontrado. No gerador, clique primeiro em “Preparar envio automático”.");
+          return;
+        }
+
+        let messages;
+        try { messages = JSON.parse(raw.slice(PREFIX.length)); } catch { messages = null; }
+        if (!Array.isArray(messages) || !messages.length || messages.length > 20 ||
+            !messages.every(m => typeof m === "string" && m.trim() && m.length <= 4000)) {
+          alert("O lote copiado é inválido. Gere e prepare o envio novamente.");
+          return;
+        }
+
+        if (!getComposer()) {
+          alert("Abra primeiro a conversa de destino (por exemplo, “Você”) e depois clique no favorito.");
+          return;
+        }
+
+        const title = chatTitle() || "a conversa aberta";
+        if (!confirm("Enviar " + messages.length + " mensagem(ns) para: " + title +
+            "\n\nNão troque de conversa nem feche esta aba até terminar.")) return;
+
+        document.body.appendChild(box);
+
+        for (let i = 0; i < messages.length; i++) {
+          if (cancelled) { finish("⏹ Interrompido. Enviadas: " + i + " de " + messages.length + "."); return; }
+          say("Enviando " + (i + 1) + " de " + messages.length + "…");
+
+          const composer = getComposer();
+          if (!composer) return fail(i, "a caixa de mensagem sumiu (você trocou de conversa?).");
+          if (!(await setText(composer, messages[i]))) return fail(i, "não consegui escrever o texto na caixa de mensagem.");
+
+          await wait(cfg.previewWait); // tempo para o WhatsApp montar a prévia do link (foto + título)
+
+          const btn = getSendButton();
+          if (!btn) return fail(i, "não encontrei o botão de enviar (o WhatsApp pode ter mudado o layout).");
+          btn.click();
+
+          // Confirma o envio: a caixa de texto precisa esvaziar.
+          let sent = false;
+          for (let t = 0; t < cfg.confirmWait; t += 250) {
+            await wait(250);
+            const c = getComposer();
+            if (c && !(c.textContent || "").trim()) { sent = true; break; }
+          }
+          if (!sent) return fail(i, "o envio não foi confirmado.");
+
+          if (i < messages.length - 1) {
+            await wait(cfg.minGap + Math.random() * (cfg.maxGap - cfg.minGap));
+          }
+        }
+        finish("✅ " + messages.length + " mensagem(ns) enviada(s)!");
+      })();
+    }
+
+    (function setupAutoSender() {
+      const link = $("waBookmarklet");
+      link.href = "javascript:" + encodeURIComponent("(" + waSender.toString() + ")()");
+      link.addEventListener("click", event => {
+        event.preventDefault();
+        $("batchStatus").hidden = false;
+        $("batchStatus").textContent = "📌 Não clique aqui: ARRASTE este botão para a barra de favoritos do navegador (Ctrl+Shift+B mostra a barra).";
+      });
+
+      try {
+        const saved = localStorage.getItem("waPhone");
+        if (saved) $("waPhone").value = saved;
+      } catch { /* sem armazenamento: tudo bem */ }
+
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch {
+          const area = document.createElement("textarea");
+          area.value = text;
+          document.body.appendChild(area);
+          area.select();
+          const ok = document.execCommand("copy");
+          area.remove();
+          return ok;
+        }
+      }
+
+      $("waPrepare").addEventListener("click", async () => {
+        const messages = batchItems.filter(i => i.ready).map(i => i.textarea.value.trim()).filter(Boolean);
+        if (!messages.length) {
+          batchStatus("⚠️ Gere as promoções primeiro: nenhuma está pronta.");
+          return;
+        }
+
+        const digits = $("waPhone").value.replace(/\D/g, "");
+        try { localStorage.setItem("waPhone", $("waPhone").value.trim()); } catch { /* ignora */ }
+
+        const copied = await copyText("PROMO-LOTE::" + JSON.stringify(messages));
+        if (!copied) {
+          batchStatus("⚠️ Não consegui copiar o lote para a área de transferência. Permita o acesso e tente de novo.");
+          return;
+        }
+
+        const url = digits.length >= 10 && digits.length <= 15
+          ? "https://web.whatsapp.com/send?phone=" + digits
+          : "https://web.whatsapp.com/";
+        waWindow = window.open(url, "wa_promos") || waWindow;
+
+        batchStatus(
+          "✅ " + messages.length + " mensagem(ns) copiada(s) e WhatsApp Web aberto. " +
+          "Agora, na aba do WhatsApp: abra a conversa de destino (ex.: “Você”) e clique no favorito “Enviar promoções”."
+        );
+      });
+
+      $("waCopyScript").addEventListener("click", async () => {
+        const ok = await copyText("(" + waSender.toString() + ")()");
+        batchStatus(ok
+          ? "📋 Script copiado. No WhatsApp Web, aperte F12 → Console, cole e tecle Enter (se o Chrome pedir, digite “allow pasting”)."
+          : "⚠️ Não consegui copiar o script.");
+      });
+    })();
 
     renderBatchValidation();
   </script>
