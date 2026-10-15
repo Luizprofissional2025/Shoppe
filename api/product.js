@@ -296,9 +296,12 @@ module.exports = async function handler(req, res) {
     );
   }
 
-  const query = `
-    query ProductOffer($itemId: Int64, $shopId: Int64, $page: Int, $limit: Int) {
-      productOfferV2(itemId: $itemId, shopId: $shopId, page: $page, limit: $limit) {
+  // Os IDs vão escritos direto na consulta (sem variáveis), como nos exemplos da
+  // documentação da Shopee: o erro 10010 "wrong type" vinha do tipo das variáveis.
+  // IDs contêm apenas dígitos (validado acima), então a interpolação é segura.
+  const buildQuery = (idLiteral) => `
+    query {
+      productOfferV2(itemId: ${idLiteral(ids.itemId)}, shopId: ${idLiteral(ids.shopId)}, page: 1, limit: 10) {
         nodes {
           itemId
           productName
@@ -320,25 +323,31 @@ module.exports = async function handler(req, res) {
     }
   `;
 
-  const payload = JSON.stringify({
-    query,
-    variables: { itemId: itemIdNumber, shopId: shopIdNumber, page: 1, limit: 10 }
-  });
+  // Tentativa 1: IDs numéricos. Tentativa 2 (só se a Shopee acusar tipo errado): IDs entre aspas.
+  const variants = [(v) => v, (v) => `"${v}"`];
 
-  // Assinatura oficial: SHA256(AppId + Timestamp + Payload + Secret), sobre o corpo EXATO enviado.
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const signature = sha256(appId + timestamp + payload + secret);
-  const authorization = `SHA256 Credential=${appId}, Timestamp=${timestamp}, Signature=${signature}`;
-
-  try {
-    const apiResponse = await fetch(SHOPEE_ENDPOINT, {
+  async function callShopee(idLiteral) {
+    const payload = JSON.stringify({ query: buildQuery(idLiteral) });
+    // Assinatura oficial: SHA256(AppId + Timestamp + Payload + Secret), sobre o corpo EXATO enviado.
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const signature = sha256(appId + timestamp + payload + secret);
+    const authorization = `SHA256 Credential=${appId}, Timestamp=${timestamp}, Signature=${signature}`;
+    const response = await fetch(SHOPEE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: authorization },
       body: payload,
       signal: AbortSignal.timeout(15000)
     });
+    const json = await response.json().catch(() => null);
+    return { apiResponse: response, data: json };
+  }
 
-    const data = await apiResponse.json().catch(() => null);
+  try {
+    let result = await callShopee(variants[0]);
+    if (String((describeProviderError(result.data) || {}).code) === "10010") {
+      result = await callShopee(variants[1]);
+    }
+    const { apiResponse, data } = result;
 
     // Erros GraphQL podem vir com HTTP 200 ou com 4xx; em ambos os casos expomos
     // código e mensagem do provedor (nunca App ID, segredo ou assinatura).
