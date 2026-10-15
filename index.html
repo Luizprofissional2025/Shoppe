@@ -1,177 +1,1023 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gerador de Promoções</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Gerador de Promoções Shopee</title>
+
   <style>
-    :root { --orange:#f05a28; --ink:#202124; --muted:#686868; --bg:#f5f6f8; }
-    * { box-sizing:border-box; }
-    body { margin:0; font-family:Arial,Helvetica,sans-serif; color:var(--ink); background:var(--bg); }
-    header { background:#fff; border-bottom:1px solid #e8e8e8; padding:18px 20px; }
-    .header-inner { max-width:1050px; margin:auto; display:flex; align-items:center; gap:12px; }
-    .logo { width:42px;height:42px;border-radius:12px;background:var(--orange);color:white;display:grid;place-items:center;font-weight:800;font-size:22px; }
-    h1 { font-size:1.2rem;margin:0; } .sub { color:var(--muted);font-size:.9rem;margin-top:4px; }
-    main { max-width:1050px;margin:28px auto;padding:0 16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.9fr);gap:22px; }
-    .panel { background:#fff;border:1px solid #e7e7e7;border-radius:16px;padding:22px;box-shadow:0 4px 16px #11100808; }
-    h2 { font-size:1.05rem;margin:0 0 18px; }
-    label { display:block;font-size:.88rem;font-weight:700;margin:14px 0 7px; }
-    input, textarea { width:100%;padding:12px 13px;border:1px solid #d6d6d6;border-radius:9px;font:inherit;background:#fff; }
-    input:focus,textarea:focus { outline:2px solid #f05a2838;border-color:var(--orange); }
-    .row { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
-    .hint { color:var(--muted);font-size:.8rem;line-height:1.45;margin-top:8px; }
-    button { border:0;border-radius:10px;padding:12px 15px;font-weight:700;font-size:.92rem;cursor:pointer; }
-    .primary { background:var(--orange);color:white;width:100%;margin-top:18px; }
-    .secondary { background:#fff1eb;color:#b93b12;border:1px solid #ffd3c4; }
-    .actions { display:flex;gap:10px;flex-wrap:wrap;margin-top:14px; }
-    .actions button { flex:1;min-width:130px; }
-    .preview-wrap { display:flex;justify-content:center; }
-    canvas { width:100%;max-width:420px;height:auto;border-radius:12px;background:#fff;box-shadow:0 4px 18px #00000012; }
-    .status { margin-top:12px;padding:10px 12px;border-radius:9px;background:#f7f7f7;color:#555;font-size:.84rem;line-height:1.45; }
-    footer { max-width:1050px;margin:0 auto 28px;padding:0 16px;color:#777;font-size:.8rem;line-height:1.5; }
-    @media(max-width:760px) { main { grid-template-columns:1fr;margin-top:16px; } .panel{padding:17px;} }
-  </style>
-</head>
-<body>
-  <header><div class="header-inner">
-    <div class="logo">%</div>
-    <div><h1>Gerador de Promoções</h1><div class="sub">Crie uma arte para divulgar seus links de afiliado</div></div>
-  </div></header>
+    :root {
+      --orange: #f05a28;
+      --ink: #202124;
+      --muted: #686868;
+      --bg: #f5f6f8;
+    }
 
-  <main>
-    <section class="panel">
-      <h2>1. Dados do produto</h2>
-      <label for="url">Link de afiliado da Shopee</label>
-      <input id="url" type="url" placeholder="Cole aqui o link de afiliado" />
-      <div class="hint">O link será incluído na mensagem de divulgação. A leitura automática dos dados depende de uma integração autorizada com a Shopee.</div>
+    * {
+      box-sizing: border-box;
+    }
 
-      <label for="name">Nome do produto</label>
-      <input id="name" type="text" placeholder="Ex.: Fone Bluetooth sem fio" />
-      <div class="row">
-        <div><label for="price">Preço promocional (R$)</label><input id="price" inputmode="decimal" placeholder="Ex.: 49,90" /></div>
-        <div><label for="oldPrice">Preço anterior (opcional)</label><input id="oldPrice" inputmode="decimal" placeholder="Ex.: 89,90" /></div>
-      </div>
-      <label for="photo">Foto do produto (opcional)</label>
-      <input id="photo" type="file" accept="image/*" />
-      <div class="hint">Escolha a foto do produto no seu dispositivo para colocá-la na arte.</div>
-      <button class="primary" id="generate">Gerar promoção</button>
-      <div class="status" id="status" role="status">Preencha os dados e clique em “Gerar promoção”.</div>
-    </section>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
 
-    <section class="panel">
-      <h2>2. Prévia da promoção</h2>
-      <div class="preview-wrap"><canvas id="art" width="900" height="1125" aria-label="Prévia da arte promocional"></canvas></div>
-      <div class="actions">
-        <button class="secondary" id="share">Enviar pelo WhatsApp</button>
-        <button class="secondary" id="download">Baixar imagem</button>
-      </div>
-      <div class="hint">O compartilhamento abre o WhatsApp para você confirmar o envio. O site não dispara mensagens automaticamente.</div>
-    </section>
-  </main>
-  <footer>Protótipo inicial: a arte é gerada no navegador. A importação automática de nome, preço e foto pelo link da Shopee ainda precisa de uma integração/API autorizada; este protótipo permite informar os dados manualmente.</footer>
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 18px 20px;
+    }
 
-<script>
-const canvas = document.getElementById('art');
-const ctx = canvas.getContext('2d');
-const $ = id => document.getElementById(id);
-let productImage = null;
+    .header-inner {
+      max-width: 1100px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-function money(raw) {
-  const value = String(raw || '').trim().replace(/[R$\s]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.');
-  const n = Number(value);
-  return Number.isFinite(n) && value !== '' ? n.toLocaleString('pt-BR', {style:'currency',currency:'BRL'}) : '';
-}
-function roundedRect(x,y,w,h,r,fill) {
-  ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fillStyle=fill; ctx.fill();
-}
-function drawCover() {
-  const g = ctx.createLinearGradient(0,0,900,1125);
-  g.addColorStop(0,'#fff5ef'); g.addColorStop(1,'#ffe0d1');
-  ctx.fillStyle=g; ctx.fillRect(0,0,900,1125);
-  roundedRect(44,44,812,1037,34,'#ffffff');
-  roundedRect(74,74,752,140,24,'#f05a28');
-  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='800 48px Arial';
-  ctx.fillText('🔥 OFERTA IMPERDÍVEL!',450,132);
-  ctx.font='bold 26px Arial'; ctx.fillText('OLHA ESSA OPORTUNIDADE',450,176);
-  ctx.fillStyle='#f05a28'; ctx.textAlign='center'; ctx.font='bold 24px Arial';
-  ctx.fillText('ACHADO DO DIA',450,260);
-}
-function drawImageContain(img,x,y,w,h) {
-  const scale=Math.min(w/img.width,h/img.height);
-  const dw=img.width*scale, dh=img.height*scale;
-  ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
-}
-function drawArt() {
-  drawCover();
-  const name=$('name').value.trim() || 'Nome do produto';
-  const price=money($('price').value) || 'Confira o preço';
-  const old=money($('oldPrice').value);
-  if(productImage) drawImageContain(productImage,120,290,660,440);
-  else {
-    roundedRect(120,290,660,440,22,'#fff2ec');
-    ctx.fillStyle='#e2a58e';ctx.textAlign='center';ctx.font='bold 34px Arial';
-    ctx.fillText('FOTO DO PRODUTO',450,510);
-    ctx.font='24px Arial';ctx.fillText('Adicione uma foto no formulário',450,554);
-  }
-  ctx.fillStyle='#252525';ctx.textAlign='center';ctx.font='bold 36px Arial';
-  wrapText(name,450,780,700,46,3);
-  if(old && old!==price) {
-    ctx.fillStyle='#888';ctx.font='28px Arial';ctx.fillText('De '+old,450,905);
-    ctx.strokeStyle='#888';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(340,896);ctx.lineTo(560,896);ctx.stroke();
-  }
-  ctx.fillStyle='#f05a28';ctx.font='800 62px Arial';ctx.fillText(price,450,970);
-  roundedRect(170,1000,560,58,20,'#f05a28');
-  ctx.fillStyle='#fff';ctx.font='bold 29px Arial';ctx.fillText('GARANTA JÁ O SEU!',450,1039);
-}
-function wrapText(text,x,y,maxWidth,lineHeight,maxLines) {
-  const words=text.split(/\s+/);let line='',lines=[];
-  for(const word of words) {
-    const test=line ? line+' '+word : word;
-    if(ctx.measureText(test).width>maxWidth && line) { lines.push(line);line=word; }
-    else line=test;
-  }
-  if(line) lines.push(line);
-  if(lines.length>maxLines) { lines=lines.slice(0,maxLines);lines[maxLines-1]=lines[maxLines-1].replace(/[.…]*$/,'')+'…'; }
-  lines.forEach((l,i)=>ctx.fillText(l,x,y+i*lineHeight));
-}
-$('photo').addEventListener('change',e=>{
-  const file=e.target.files?.[0]; if(!file){productImage=null;return;}
-  const reader=new FileReader();
-  reader.onload=()=>{const img=new Image();img.onload=()=>{productImage=img;drawArt();};img.src=reader.result;};
-  reader.readAsDataURL(file);
-});
-$('generate').addEventListener('click',()=>{
-  const url=$('url').value.trim();
-  if(url && !/^https?:\/\//i.test(url)) { $('status').textContent='Confira o link: ele precisa começar com https:// ou http://.'; return; }
-  if(!$('name').value.trim()) { $('status').textContent='Informe o nome do produto para gerar a promoção.'; return; }
-  drawArt();
-  $('status').textContent='Arte gerada! Confira a prévia e use “Enviar pelo WhatsApp” para compartilhar manualmente.';
-});
-$('download').addEventListener('click',()=>{
-  drawArt();const a=document.createElement('a');a.download='promocao-afiliado.png';a.href=canvas.toDataURL('image/png');a.click();
-});
-$('share').addEventListener('click',async()=>{
-  drawArt();
-  const url=$('url').value.trim();
-  const name=$('name').value.trim() || 'Confira esta oferta';
-  const price=money($('price').value);
-  const message=`🔥 OFERTA IMPERDÍVEL!\n${name}${price ? '\nPreço: '+price : ''}\nConfira aqui: ${url}`;
-  try {
-    if(navigator.share && navigator.canShare) {
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
-      const file=new File([blob],'promocao-afiliado.png',{type:'image/png'});
-      if(navigator.canShare({files:[file]})) {
-        await navigator.share({title:name,text:message,files:[file]});
-        $('status').textContent='Compartilhamento aberto. Selecione o WhatsApp e confirme o envio.';
-        return;
+    .logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--orange);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 23px;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      margin: 0;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-top: 4px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 22px;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #e7e7e7;
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 4px 16px #11100808;
+      min-width: 0;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      margin: 0 0 18px;
+    }
+
+    label {
+      display: block;
+      font-size: .88rem;
+      font-weight: 700;
+      margin: 14px 0 7px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 12px 13px;
+      border: 1px solid #d6d6d6;
+      border-radius: 9px;
+      font: inherit;
+      background: #fff;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: 2px solid #f05a2838;
+      border-color: var(--orange);
+    }
+
+    textarea {
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 15px;
+      font-weight: 700;
+      font-size: .92rem;
+      cursor: pointer;
+      transition: opacity .2s, transform .2s;
+    }
+
+    button:hover {
+      opacity: .9;
+      transform: translateY(-1px);
+    }
+
+    button:focus-visible {
+      outline: 3px solid #f05a2860;
+      outline-offset: 2px;
+    }
+
+    .primary {
+      background: var(--orange);
+      color: white;
+      width: 100%;
+      margin-top: 18px;
+    }
+
+    .whatsapp {
+      background: #128c4a;
+      color: white;
+    }
+
+    .secondary {
+      background: #fff1eb;
+      color: #b93b12;
+      border: 1px solid #ffd3c4;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .actions button {
+      flex: 1;
+      min-width: 135px;
+    }
+
+    .preview-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 420px;
+      height: auto;
+      border-radius: 12px;
+      background: white;
+      box-shadow: 0 4px 18px #00000012;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: #f7f7f7;
+      color: #555;
+      font-size: .84rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .message-panel {
+      margin-top: 22px;
+    }
+
+    .message-panel textarea {
+      min-height: 190px;
+      background: #fafafa;
+    }
+
+    .message-panel .actions {
+      margin-top: 10px;
+    }
+
+    footer {
+      max-width: 1100px;
+      margin: 0 auto 28px;
+      padding: 0 16px;
+      color: #777;
+      font-size: .8rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 760px) {
+      main {
+        grid-template-columns: 1fr;
+        margin-top: 16px;
+      }
+
+      .panel {
+        padding: 17px;
+      }
+
+      .actions button {
+        min-width: 100%;
       }
     }
-  } catch(e) { if(e.name==='AbortError') return; }
-  const waUrl='https://wa.me/?text='+encodeURIComponent(message);
-  window.open(waUrl,'_blank','noopener,noreferrer');
-  $('status').textContent='O WhatsApp foi aberto com o texto e o link. Neste navegador, a imagem talvez precise ser compartilhada separadamente; o site não envia mensagens automaticamente.';
-});
-drawArt();
-</script>
+
+    @media (max-width: 380px) {
+      .row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">%</div>
+
+      <div>
+        <h1>Gerador de Promoções Shopee</h1>
+        <div class="sub">
+          Crie ofertas para compartilhar no WhatsApp
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- FORMULÁRIO DO PRODUTO -->
+    <section class="panel">
+
+      <h2>1. Dados do produto</h2>
+
+      <label for="url">Link de afiliado da Shopee</label>
+
+      <input
+        id="url"
+        type="url"
+        placeholder="Cole seu link de afiliado"
+      >
+
+      <div class="hint">
+        O link será incluído na mensagem para que as pessoas
+        possam clicar e acessar o produto.
+      </div>
+
+      <label for="name">Nome do produto</label>
+
+      <input
+        id="name"
+        type="text"
+        placeholder="Ex.: Fone Bluetooth sem fio"
+        maxlength="160"
+      >
+
+      <label for="description">Descrição do produto (opcional)</label>
+
+      <textarea
+        id="description"
+        rows="3"
+        maxlength="500"
+        placeholder="Descreva os benefícios ou características do produto"
+      ></textarea>
+
+      <div class="row">
+
+        <div>
+          <label for="price">Preço promocional (R$)</label>
+
+          <input
+            id="price"
+            inputmode="decimal"
+            placeholder="Ex.: 49,90"
+          >
+        </div>
+
+        <div>
+          <label for="oldPrice">Preço anterior (opcional)</label>
+
+          <input
+            id="oldPrice"
+            inputmode="decimal"
+            placeholder="Ex.: 89,90"
+          >
+        </div>
+
+      </div>
+
+      <label for="photo">Foto do produto</label>
+
+      <input
+        id="photo"
+        type="file"
+        accept="image/*"
+      >
+
+      <div class="hint">
+        Selecione a foto salva no seu dispositivo.
+      </div>
+
+      <button class="primary" id="generate">
+        Gerar promoção
+      </button>
+
+      <div
+        class="status"
+        id="status"
+        role="status"
+        aria-live="polite"
+      >
+        Preencha os dados e gere sua promoção.
+      </div>
+
+    </section>
+
+    <!-- PRÉVIA DA ARTE -->
+    <section class="panel">
+
+      <h2>2. Prévia da promoção</h2>
+
+      <div class="preview-wrap">
+        <canvas
+          id="art"
+          width="900"
+          height="1125"
+          aria-label="Imagem da promoção"
+        ></canvas>
+      </div>
+
+      <div class="actions">
+
+        <button class="whatsapp" id="shareWhatsApp">
+          Enviar texto pelo WhatsApp
+        </button>
+
+        <button class="secondary" id="shareImage">
+          Compartilhar imagem
+        </button>
+
+        <button class="secondary" id="download">
+          Baixar imagem
+        </button>
+
+      </div>
+
+      <div class="hint">
+        O botão do WhatsApp prepara a mensagem e o link.
+        O envio é manual. Para compartilhar a imagem,
+        use o botão específico quando o navegador oferecer suporte.
+      </div>
+
+      <!-- MENSAGEM PRONTA -->
+      <div class="message-panel">
+
+        <h2>3. Mensagem da promoção</h2>
+
+        <label for="message">Texto pronto para compartilhar</label>
+
+        <textarea
+          id="message"
+          readonly
+          aria-label="Mensagem pronta para compartilhar"
+        ></textarea>
+
+        <div class="actions">
+
+          <button class="secondary" id="copyMessage">
+            Copiar mensagem
+          </button>
+
+        </div>
+
+        <div class="hint">
+          O link fica em formato de texto clicável quando
+          compartilhado como mensagem no WhatsApp.
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer>
+    A imagem é gerada diretamente no navegador.
+    Os dados do produto são preenchidos manualmente nesta versão.
+    A consulta automática depende de uma integração autorizada
+    com a Shopee.
+  </footer>
+
+  <script>
+    "use strict";
+
+    // ==========================================
+    // CONFIGURAÇÃO
+    // ==========================================
+
+    // Número informado pelo proprietário do projeto.
+    // Formato internacional: código do país + DDD + número.
+    const WHATSAPP_NUMBER = "5521977041825";
+
+    const canvas = document.getElementById("art");
+    const ctx = canvas.getContext("2d");
+
+    const $ = id => document.getElementById(id);
+
+    let productImage = null;
+    let generated = false;
+
+    // ==========================================
+    // FORMATAÇÃO DE PREÇO
+    // ==========================================
+
+    function parsePrice(raw) {
+      let value = String(raw || "")
+        .trim()
+        .replace(/R\$/gi, "")
+        .replace(/\s/g, "");
+
+      if (!value) return null;
+
+      // Aceita formatos como 49,90 ou 1.299,90.
+      if (value.includes(",")) {
+        value = value.replace(/\./g, "").replace(",", ".");
+      }
+
+      const number = Number(value);
+
+      return Number.isFinite(number) && number >= 0
+        ? number
+        : null;
+    }
+
+    function money(raw) {
+      const value = parsePrice(raw);
+
+      if (value === null) return "";
+
+      return value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+      });
+    }
+
+    // ==========================================
+    // DESENHO DA ARTE
+    // ==========================================
+
+    function roundedRect(x, y, w, h, r, fill) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+
+    function drawCover() {
+      const gradient = ctx.createLinearGradient(
+        0, 0, canvas.width, canvas.height
+      );
+
+      gradient.addColorStop(0, "#fff5ef");
+      gradient.addColorStop(1, "#ffe0d1");
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      roundedRect(44, 44, 812, 1037, 34, "#ffffff");
+
+      roundedRect(74, 74, 752, 140, 24, "#f05a28");
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.font = "800 45px Arial";
+
+      ctx.fillText("OFERTA IMPERDÍVEL!", 450, 132);
+
+      ctx.font = "bold 26px Arial";
+      ctx.fillText("OLHA ESSA OPORTUNIDADE", 450, 176);
+
+      ctx.fillStyle = "#f05a28";
+      ctx.font = "bold 24px Arial";
+
+      ctx.fillText("ACHADO DO DIA", 450, 260);
+    }
+
+    function drawImageContain(img, x, y, w, h) {
+      const scale = Math.min(
+        w / img.width,
+        h / img.height
+      );
+
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+
+      ctx.drawImage(
+        img,
+        x + (w - dw) / 2,
+        y + (h - dh) / 2,
+        dw,
+        dh
+      );
+    }
+
+    function wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
+      const words = text.split(/\s+/);
+      const lines = [];
+
+      let line = "";
+
+      for (const word of words) {
+        const test = line ? line + " " + word : word;
+
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+
+      if (line) {
+        lines.push(line);
+      }
+
+      if (lines.length > maxLines) {
+        lines.length = maxLines;
+
+        let last = lines[maxLines - 1];
+
+        while (
+          last.length > 1 &&
+          ctx.measureText(last + "…").width > maxWidth
+        ) {
+          last = last.slice(0, -1);
+        }
+
+        lines[maxLines - 1] = last + "…";
+      }
+
+      lines.forEach((item, index) => {
+        ctx.fillText(
+          item,
+          x,
+          y + index * lineHeight
+        );
+      });
+    }
+
+    function drawArt() {
+      drawCover();
+
+      const name =
+        $("name").value.trim() || "Nome do produto";
+
+      const price =
+        money($("price").value) || "Confira o preço";
+
+      const oldPrice = money($("oldPrice").value);
+
+      if (productImage) {
+        drawImageContain(
+          productImage,
+          120, 290, 660, 440
+        );
+      } else {
+        roundedRect(
+          120, 290, 660, 440, 22, "#fff2ec"
+        );
+
+        ctx.fillStyle = "#e2a58e";
+        ctx.textAlign = "center";
+        ctx.font = "bold 34px Arial";
+
+        ctx.fillText("FOTO DO PRODUTO", 450, 510);
+
+        ctx.font = "24px Arial";
+
+        ctx.fillText(
+          "Adicione uma foto no formulário",
+          450,
+          554
+        );
+      }
+
+      ctx.fillStyle = "#252525";
+      ctx.textAlign = "center";
+      ctx.font = "bold 36px Arial";
+
+      wrapText(name, 450, 780, 700, 46, 2);
+
+      if (oldPrice && oldPrice !== price) {
+        ctx.fillStyle = "#888";
+        ctx.font = "28px Arial";
+
+        ctx.fillText("De " + oldPrice, 450, 900);
+
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        ctx.moveTo(340, 891);
+        ctx.lineTo(560, 891);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#f05a28";
+      ctx.font = "800 58px Arial";
+
+      ctx.fillText(price, 450, 970);
+
+      roundedRect(
+        170, 1000, 560, 58, 20, "#f05a28"
+      );
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 29px Arial";
+
+      ctx.fillText(
+        "GARANTA JÁ O SEU!",
+        450,
+        1039
+      );
+    }
+
+    // ==========================================
+    // LINK DE AFILIADO
+    // ==========================================
+
+    function getProductUrl() {
+      const raw = $("url").value.trim();
+
+      if (!raw) return "";
+
+      try {
+        const parsed = new URL(raw);
+
+        if (
+          parsed.protocol !== "https:" &&
+          parsed.protocol !== "http:"
+        ) {
+          return null;
+        }
+
+        return parsed.href;
+      } catch {
+        return null;
+      }
+    }
+
+    // ==========================================
+    // GERAÇÃO DA MENSAGEM
+    // ==========================================
+
+    function buildMessage() {
+      const name = $("name").value.trim();
+      const price = money($("price").value);
+      const oldPrice = money($("oldPrice").value);
+      const description = $("description").value.trim();
+      const url = getProductUrl();
+
+      const lines = [
+        "🔥 OFERTA IMPERDÍVEL! 🔥",
+        "",
+        "🛍️ " + (name || "Confira esta oferta!")
+      ];
+
+      if (description) {
+        lines.push("", description);
+      }
+
+      if (price) {
+        lines.push("", "💰 Por apenas " + price + "!");
+      }
+
+      if (oldPrice && price) {
+        const oldValue = parsePrice($("oldPrice").value);
+        const currentValue = parsePrice($("price").value);
+
+        if (
+          oldValue !== null &&
+          currentValue !== null &&
+          oldValue > currentValue
+        ) {
+          lines.push("🏷️ De " + oldPrice);
+        }
+      }
+
+      lines.push(
+        "",
+        "🛒 Aproveite essa oportunidade!",
+        ""
+      );
+
+      if (url) {
+        lines.push(
+          "👉 COMPRE AQUI:",
+          url
+        );
+      } else {
+        lines.push(
+          "👉 Insira seu link de afiliado para divulgar a oferta."
+        );
+      }
+
+      lines.push(
+        "",
+        "⚠️ Consulte o preço e a disponibilidade na Shopee."
+      );
+
+      return lines.join("\n");
+    }
+
+    function updateMessage() {
+      $("message").value = buildMessage();
+    }
+
+    // ==========================================
+    // VALIDAÇÃO E GERAÇÃO
+    // ==========================================
+
+    function generatePromotion() {
+      const url = getProductUrl();
+      const name = $("name").value.trim();
+
+      if ($("url").value.trim() && url === null) {
+        $("status").textContent =
+          "Confira o link: informe um endereço HTTP ou HTTPS válido.";
+
+        return false;
+      }
+
+      if (!name) {
+        $("status").textContent =
+          "Informe o nome do produto antes de gerar a promoção.";
+
+        return false;
+      }
+
+      const priceInput = $("price").value.trim();
+
+      if (priceInput && parsePrice(priceInput) === null) {
+        $("status").textContent =
+          "Confira o preço promocional informado.";
+
+        return false;
+      }
+
+      drawArt();
+      updateMessage();
+
+      generated = true;
+
+      $("status").textContent =
+        "Promoção gerada! Confira a imagem e a mensagem antes de compartilhar.";
+
+      return true;
+    }
+
+    $("generate").addEventListener(
+      "click",
+      generatePromotion
+    );
+
+    // ==========================================
+    // CARREGAMENTO DA FOTO
+    // ==========================================
+
+    $("photo").addEventListener("change", event => {
+      const file = event.target.files?.[0];
+
+      if (!file) {
+        productImage = null;
+        drawArt();
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        $("status").textContent =
+          "Selecione um arquivo de imagem válido.";
+
+        event.target.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const img = new Image();
+
+        img.onload = () => {
+          productImage = img;
+          drawArt();
+
+          $("status").textContent =
+            "Foto carregada. Clique em Gerar promoção para atualizar tudo.";
+        };
+
+        img.onerror = () => {
+          $("status").textContent =
+            "Não foi possível carregar essa imagem.";
+
+          productImage = null;
+        };
+
+        img.src = reader.result;
+      };
+
+      reader.onerror = () => {
+        $("status").textContent =
+          "Erro ao ler o arquivo selecionado.";
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    // Atualiza a mensagem quando os dados mudarem.
+    [
+      "url",
+      "name",
+      "price",
+      "oldPrice",
+      "description"
+    ].forEach(id => {
+      $(id).addEventListener("input", updateMessage);
+    });
+
+    // ==========================================
+    // CONVERTE A ARTE EM ARQUIVO
+    // ==========================================
+
+    function canvasToBlob() {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(
+              new Error("Não foi possível criar a imagem.")
+            );
+          }
+        }, "image/png");
+      });
+    }
+
+    // ==========================================
+    // ABRIR O WHATSAPP COM TEXTO E LINK
+    // ==========================================
+
+    $("shareWhatsApp").addEventListener("click", () => {
+      if (!generatePromotion()) return;
+
+      const message = buildMessage();
+
+      const whatsappUrl =
+        "https://wa.me/" +
+        WHATSAPP_NUMBER +
+        "?text=" +
+        encodeURIComponent(message);
+
+      window.open(
+        whatsappUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      $("status").textContent =
+        "Conversa aberta com a mensagem preparada. Confira o texto e toque em Enviar no WhatsApp.";
+    });
+
+    // ==========================================
+    // COMPARTILHAR A IMAGEM
+    // ==========================================
+
+    $("shareImage").addEventListener("click", async () => {
+      if (!generatePromotion()) return;
+
+      try {
+        const blob = await canvasToBlob();
+
+        const file = new File(
+          [blob],
+          "promocao-shopee.png",
+          { type: "image/png" }
+        );
+
+        if (
+          navigator.share &&
+          navigator.canShare &&
+          navigator.canShare({ files: [file] })
+        ) {
+          await navigator.share({
+            title: $("name").value.trim(),
+            text: buildMessage(),
+            files: [file]
+          });
+
+          $("status").textContent =
+            "Menu de compartilhamento aberto. Selecione o WhatsApp, se disponível, e confirme o envio.";
+
+          return;
+        }
+
+        // Alternativa para navegadores sem suporte.
+        downloadImage();
+
+        $("status").textContent =
+          "Seu navegador não permite compartilhar a imagem diretamente. A imagem foi baixada para você anexá-la manualmente no WhatsApp.";
+
+      } catch (error) {
+        if (error.name === "AbortError") {
+          $("status").textContent =
+            "Compartilhamento cancelado.";
+          return;
+        }
+
+        $("status").textContent =
+          "Não foi possível compartilhar diretamente. Use o botão Baixar imagem e anexe o arquivo no WhatsApp.";
+      }
+    });
+
+    // ==========================================
+    // BAIXAR A IMAGEM
+    // ==========================================
+
+    function downloadImage() {
+      const link = document.createElement("a");
+
+      link.download = "promocao-shopee.png";
+      link.href = canvas.toDataURL("image/png");
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    $("download").addEventListener("click", () => {
+      if (!generatePromotion()) return;
+
+      downloadImage();
+
+      $("status").textContent =
+        "Imagem baixada. Você pode anexá-la manualmente à conversa do WhatsApp.";
+    });
+
+    // ==========================================
+    // COPIAR A MENSAGEM
+    // ==========================================
+
+    $("copyMessage").addEventListener("click", async () => {
+      if (!generatePromotion()) return;
+
+      const message = buildMessage();
+
+      try {
+        await navigator.clipboard.writeText(message);
+
+        $("status").textContent =
+          "Mensagem copiada! Agora você pode colá-la no WhatsApp.";
+      } catch {
+        // Alternativa para navegadores sem Clipboard API.
+        const textarea = $("message");
+
+        textarea.focus();
+        textarea.select();
+
+        const copied = document.execCommand("copy");
+
+        $("status").textContent = copied
+          ? "Mensagem copiada! Agora você pode colá-la no WhatsApp."
+          : "Não foi possível copiar automaticamente. Selecione o texto da mensagem e copie manualmente.";
+      }
+    });
+
+    // ==========================================
+    // INICIALIZAÇÃO
+    // ==========================================
+
+    drawArt();
+    updateMessage();
+
+  </script>
+
 </body>
 </html>
