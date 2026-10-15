@@ -1,0 +1,862 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Promoções Shopee</title>
+  <style>
+    :root {
+      --orange: #f05a28;
+      --orange-dark: #d94818;
+      --ink: #202124;
+      --muted: #686868;
+      --bg: #f5f6f8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 18px 20px;
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 45px;
+      height: 45px;
+      border-radius: 12px;
+      background: var(--orange);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 25px;
+      flex-shrink: 0;
+    }
+
+    h1 { font-size: 1.2rem; margin: 0; }
+
+    .sub {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-top: 5px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #e7e7e7;
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 4px 16px #11100808;
+      min-width: 0;
+    }
+
+    h2 { font-size: 1.05rem; margin: 0 0 18px; }
+
+    label {
+      display: block;
+      font-size: .9rem;
+      font-weight: 700;
+      margin: 15px 0 7px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px 13px;
+      border: 1px solid #d6d6d6;
+      border-radius: 9px;
+      font: inherit;
+      background: #fff;
+    }
+
+    input:focus, textarea:focus {
+      outline: 2px solid #f05a2838;
+      border-color: var(--orange);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 220px;
+      line-height: 1.5;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: .81rem;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 15px;
+      font-weight: 700;
+      font-size: .93rem;
+      cursor: pointer;
+      transition: background .2s, transform .2s;
+    }
+
+    button:hover { transform: translateY(-1px); }
+
+    button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: var(--orange);
+      color: #fff;
+      width: 100%;
+      margin-top: 18px;
+    }
+
+    .primary:hover { background: var(--orange-dark); }
+
+    .secondary {
+      background: #fff1eb;
+      color: #b93b12;
+      border: 1px solid #ffd3c4;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .actions button {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .preview-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 420px;
+      height: auto;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 4px 18px #00000012;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 11px 12px;
+      border-radius: 9px;
+      background: #f7f7f7;
+      color: #555;
+      font-size: .85rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .section-divider {
+      border: 0;
+      border-top: 1px solid #eee;
+      margin: 22px 0;
+    }
+
+    footer {
+      max-width: 1100px;
+      margin: 0 auto 28px;
+      padding: 0 16px;
+      color: #777;
+      font-size: .8rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 760px) {
+      main {
+        grid-template-columns: 1fr;
+        margin-top: 16px;
+      }
+
+      .panel { padding: 17px; }
+    }
+
+    @media (max-width: 420px) {
+      .row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .actions { flex-direction: column; }
+      .actions button { width: 100%; }
+      h1 { font-size: 1.05rem; }
+      .sub { font-size: .82rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="logo">%</div>
+      <div>
+        <h1>Gerador de Promoções</h1>
+        <div class="sub">
+          Crie artes e mensagens para divulgar seus links de afiliado 🛍️
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>🛍️ 1. Dados do produto</h2>
+
+      <label for="url">🔗 Seu link de afiliado</label>
+      <input id="url" type="url" placeholder="Cole aqui seu link de afiliado">
+      <label for="productLookupUrl">🔎 Link direto do produto (para buscar os dados)</label>
+      <input id="productLookupUrl" type="url" placeholder="Cole o link direto do produto na Shopee">
+      <button class="secondary" id="lookupProduct" type="button" style="width:100%;margin-top:10px">
+        🔎 Buscar produto automaticamente
+      </button>
+      <div class="hint">
+        O link de afiliado acima será preservado. Para a busca automática, use o link direto do produto
+        que contenha os identificadores da loja e do item.
+      </div>
+
+      <label for="name">📦 Nome do produto</label>
+      <input id="name" type="text" maxlength="160" placeholder="Ex.: Fone Bluetooth sem fio">
+
+      <label for="description">✨ Descrição do produto (opcional)</label>
+      <textarea
+        id="description"
+        rows="3"
+        style="min-height:80px"
+        maxlength="500"
+        placeholder="Ex.: Sem fio, bateria duradoura e ótima qualidade de som."
+      ></textarea>
+
+      <div class="row">
+        <div>
+          <label for="price">💰 Preço promocional (R$)</label>
+          <input id="price" inputmode="decimal" placeholder="Ex.: 49,90">
+        </div>
+
+        <div>
+          <label for="oldPrice">🏷️ Preço anterior (opcional)</label>
+          <input id="oldPrice" inputmode="decimal" placeholder="Ex.: 99,90">
+        </div>
+      </div>
+
+      <label for="photo">📸 Foto do produto (opcional)</label>
+      <input id="photo" type="file" accept="image/*">
+
+      <div class="hint">
+        Escolha uma foto do produto para incluí-la na arte promocional.
+      </div>
+
+      <button class="primary" id="generate">🎨 Gerar promoção</button>
+
+      <div class="status" id="status" role="status" aria-live="polite">
+        Preencha os dados e clique em “Gerar promoção”.
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>🎨 2. Prévia da promoção</h2>
+
+      <div class="preview-wrap">
+        <canvas
+          id="art"
+          width="900"
+          height="1125"
+          aria-label="Prévia da arte promocional"
+        ></canvas>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="shareWhatsApp">
+          📲 Preparar promoção no WhatsApp Web
+        </button>
+      </div>
+
+      <div class="actions">
+        <button class="secondary" id="download">⬇️ Baixar imagem</button>
+        <button class="secondary" id="copyMessage">📋 Copiar mensagem</button>
+      </div>
+
+      <div class="hint">
+        No computador, o botão abre o WhatsApp Web com a mensagem e o link.
+        A imagem é baixada separadamente para você anexar na conversa.
+        O navegador não permite anexar automaticamente um arquivo local ao WhatsApp Web.
+      </div>
+
+      <hr class="section-divider">
+
+      <h2>💬 3. Mensagem promocional</h2>
+
+      <label for="message">Prévia do texto que será enviado</label>
+      <textarea id="message" readonly aria-label="Prévia da mensagem promocional"></textarea>
+
+      <div class="hint">
+        O link de afiliado aparece como link clicável na mensagem do WhatsApp.
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Esta versão gera a arte no navegador. Nome, preço e foto são informados
+    manualmente; a leitura automática dos dados do produto depende de uma
+    integração autorizada com a Shopee. O compartilhamento não envia mensagens automaticamente.
+  </footer>
+
+  <script>
+    "use strict";
+
+    const canvas = document.getElementById("art");
+    const ctx = canvas.getContext("2d");
+    const $ = id => document.getElementById(id);
+
+    let productImage = null;
+    let remoteProductImage = null;
+
+    function parsePrice(raw) {
+      let value = String(raw ?? "")
+        .trim()
+        .replace(/R\$/gi, "")
+        .replace(/\s/g, "");
+
+      if (!value) return null;
+
+      if (value.includes(",")) {
+        value = value.replace(/\./g, "").replace(",", ".");
+      }
+
+      const number = Number(value);
+
+      return Number.isFinite(number) && number >= 0
+        ? number
+        : null;
+    }
+
+    function money(raw) {
+      const value = parsePrice(raw);
+
+      return value === null
+        ? ""
+        : value.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+          });
+    }
+
+    function getDiscount() {
+      const oldValue = parsePrice($("oldPrice").value);
+      const currentValue = parsePrice($("price").value);
+
+      if (
+        oldValue === null ||
+        currentValue === null ||
+        oldValue <= currentValue ||
+        oldValue <= 0
+      ) {
+        return null;
+      }
+
+      return Math.round(
+        ((oldValue - currentValue) / oldValue) * 100
+      );
+    }
+
+    function getProductUrl() {
+      const raw = $("url").value.trim();
+
+      if (!raw) return "";
+
+      try {
+        const parsed = new URL(raw);
+
+        if (!["https:", "http:"].includes(parsed.protocol)) {
+          return null;
+        }
+
+        return parsed.href;
+      } catch {
+        return null;
+      }
+    }
+
+    function buildMessage() {
+      const name = $("name").value.trim();
+      const description = $("description").value.trim();
+      const price = money($("price").value);
+      const oldPrice = money($("oldPrice").value);
+      const url = getProductUrl();
+      const discount = getDiscount();
+
+      const lines = [
+        "🚨🔥 *OFERTA IMPERDÍVEL!* 🔥🚨",
+        "",
+        "🛍️✨ " + (name || "Achadinho especial!"),
+        ""
+      ];
+
+      if (description) {
+        lines.push("💎 " + description, "");
+      }
+
+      if (price && discount !== null) {
+        lines.push(
+          "❌ De: " + oldPrice,
+          "🔥 *POR APENAS: " + price + "*",
+          "💥 *ECONOMIZE " + discount + "%!*",
+          ""
+        );
+      } else if (price) {
+        lines.push(
+          "💰 *PREÇO ESPECIAL: " + price + "*",
+          ""
+        );
+      }
+
+      lines.push(
+        "😍 Corre aproveitar essa oportunidade!",
+        "🛒 *Garanta já o seu!*",
+        "",
+        "👇👇👇 *CLIQUE AQUI PARA COMPRAR* 👇👇👇",
+        ""
+      );
+
+      lines.push(
+        url
+          ? "🔗 " + url
+          : "🔗 Adicione seu link de afiliado."
+      );
+
+      lines.push(
+        "",
+        "📲 Gostou? Compartilhe com seus amigos! ❤️"
+      );
+
+      return lines.join("\n");
+    }
+
+    function roundedRect(x, y, w, h, r, fill) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+
+    function drawCover() {
+      const gradient = ctx.createLinearGradient(0, 0, 900, 1125);
+
+      gradient.addColorStop(0, "#fff5ef");
+      gradient.addColorStop(1, "#ffe0d1");
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 900, 1125);
+
+      roundedRect(44, 44, 812, 1037, 34, "#fff");
+      roundedRect(74, 74, 752, 140, 24, "#f05a28");
+
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.font = "800 48px Arial";
+      ctx.fillText("🔥 OFERTA IMPERDÍVEL!", 450, 132);
+
+      ctx.font = "bold 26px Arial";
+      ctx.fillText("OLHA ESSA OPORTUNIDADE", 450, 176);
+
+      ctx.fillStyle = "#f05a28";
+      ctx.font = "bold 24px Arial";
+      ctx.fillText("✨ ACHADO DO DIA ✨", 450, 260);
+    }
+
+    function drawImageContain(img, x, y, w, h) {
+      const scale = Math.min(w / img.width, h / img.height);
+
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+
+      ctx.drawImage(
+        img,
+        x + (w - dw) / 2,
+        y + (h - dh) / 2,
+        dw,
+        dh
+      );
+    }
+
+    function wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
+      const words = text.split(/\s+/);
+      let line = "";
+      let lines = [];
+
+      for (const word of words) {
+        const test = line ? line + " " + word : word;
+
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+
+      if (line) lines.push(line);
+
+      if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+
+        let last = lines[maxLines - 1];
+
+        while (
+          last.length > 1 &&
+          ctx.measureText(last + "…").width > maxWidth
+        ) {
+          last = last.slice(0, -1);
+        }
+
+        lines[maxLines - 1] = last + "…";
+      }
+
+      lines.forEach((item, index) => {
+        ctx.fillText(item, x, y + index * lineHeight);
+      });
+    }
+
+    function drawArt() {
+      drawCover();
+
+      const name = $("name").value.trim() || "Nome do produto";
+      const price = money($("price").value) || "PREÇO ESPECIAL";
+      const oldPrice = money($("oldPrice").value);
+
+      if (productImage || remoteProductImage) {
+        drawImageContain(productImage || remoteProductImage, 120, 290, 660, 440);
+      } else {
+        roundedRect(120, 290, 660, 440, 22, "#fff2ec");
+
+        ctx.fillStyle = "#e2a58e";
+        ctx.textAlign = "center";
+        ctx.font = "bold 34px Arial";
+        ctx.fillText("FOTO DO PRODUTO", 450, 510);
+
+        ctx.font = "24px Arial";
+        ctx.fillText("Adicione uma foto no formulário", 450, 554);
+      }
+
+      ctx.fillStyle = "#252525";
+      ctx.textAlign = "center";
+      ctx.font = "bold 36px Arial";
+
+      wrapText(name, 450, 780, 700, 46, 3);
+
+      if (oldPrice && oldPrice !== price) {
+        ctx.fillStyle = "#888";
+        ctx.font = "28px Arial";
+        ctx.fillText("De " + oldPrice, 450, 905);
+
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(340, 896);
+        ctx.lineTo(560, 896);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#f05a28";
+      ctx.font = "800 62px Arial";
+      ctx.fillText(price, 450, 970);
+
+      roundedRect(170, 1000, 560, 58, 20, "#f05a28");
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 29px Arial";
+      ctx.fillText("GARANTA JÁ O SEU!", 450, 1039);
+    }
+
+    function updateMessage() {
+      $("message").value = buildMessage();
+    }
+
+    function generatePromotion() {
+      const url = getProductUrl();
+
+      if (url === null) {
+        $("status").textContent =
+          "⚠️ Confira o link: informe um endereço HTTP ou HTTPS válido.";
+        return false;
+      }
+
+      if (!$("name").value.trim()) {
+        $("status").textContent =
+          "⚠️ Informe o nome do produto para gerar a promoção.";
+        return false;
+      }
+
+      if (
+        $("price").value.trim() &&
+        parsePrice($("price").value) === null
+      ) {
+        $("status").textContent =
+          "⚠️ Informe um preço promocional válido.";
+        return false;
+      }
+
+      if (
+        $("oldPrice").value.trim() &&
+        parsePrice($("oldPrice").value) === null
+      ) {
+        $("status").textContent =
+          "⚠️ Confira o preço anterior informado.";
+        return false;
+      }
+
+      drawArt();
+      updateMessage();
+
+      $("status").textContent =
+        "✅ Promoção gerada! Confira a imagem e a mensagem.";
+
+      return true;
+    }
+
+    $("photo").addEventListener("change", event => {
+      const file = event.target.files?.[0];
+
+      if (!file) {
+        productImage = null;
+        drawArt();
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        $("status").textContent =
+          "⚠️ Escolha um arquivo de imagem válido.";
+
+        event.target.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const img = new Image();
+
+        img.onload = () => {
+          productImage = img;
+          remoteProductImage = null;
+          drawArt();
+
+          $("status").textContent =
+            "📸 Foto carregada! Agora gere sua promoção.";
+        };
+
+        img.onerror = () => {
+          $("status").textContent =
+            "⚠️ Não foi possível carregar essa imagem.";
+        };
+
+        img.src = reader.result;
+      };
+
+      reader.onerror = () => {
+        $("status").textContent =
+          "⚠️ Não foi possível ler o arquivo selecionado.";
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+
+    async function lookupProduct() {
+      const lookupUrl = $("productLookupUrl").value.trim();
+      if (!lookupUrl) {
+        $("status").textContent = "⚠️ Cole o link direto do produto no campo de busca automática.";
+        return;
+      }
+
+      let parsed;
+      try {
+        parsed = new URL(lookupUrl);
+      } catch {
+        $("status").textContent = "⚠️ O link do produto não é uma URL válida.";
+        return;
+      }
+
+      if (!["https:", "http:"].includes(parsed.protocol)) {
+        $("status").textContent = "⚠️ O link precisa começar com HTTP ou HTTPS.";
+        return;
+      }
+
+      const button = $("lookupProduct");
+      button.disabled = true;
+      button.textContent = "⏳ Consultando a Shopee...";
+      $("status").textContent = "Consultando os dados do produto. Aguarde.";
+
+      try {
+        const response = await fetch("/api/product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productUrl: parsed.href })
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const detail = result.details ? " " + result.details : "";
+          throw new Error((result.error || "Não foi possível consultar o produto.") + detail);
+        }
+
+        if (result.name) $("name").value = result.name;
+        if (result.price !== null && result.price !== undefined) {
+          $("price").value = String(result.price).replace(".", ",");
+        } else if (result.priceRange) {
+          $("price").value = "";
+        }
+
+        // Do not replace the user's affiliate link with a product page URL.
+        // The product link is used only to look up the product's data.
+        if (result.imageUrl) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            remoteProductImage = img;
+            productImage = null;
+            $("photo").value = "";
+            drawArt();
+          };
+          img.onerror = () => {
+            remoteProductImage = null;
+            $("status").textContent =
+              "✅ Dados encontrados, mas o servidor da imagem não permite carregá-la automaticamente. Selecione a foto manualmente.";
+          };
+          img.src = result.imageUrl;
+        }
+
+        updateMessage();
+        if (result.priceRange) {
+          $("status").textContent =
+            "✅ Produto encontrado. O preço varia conforme a opção, então deixei o preço vazio para você confirmar na Shopee.";
+        } else {
+          $("status").textContent =
+            "✅ Produto encontrado. Confira o nome e o preço antes de gerar a promoção.";
+        }
+      } catch (error) {
+        $("status").textContent = "⚠️ " + (error.message || "Falha na consulta.") +
+          " Você ainda pode preencher os dados manualmente.";
+      } finally {
+        button.disabled = false;
+        button.textContent = "🔎 Buscar produto automaticamente";
+      }
+    }
+
+    $("lookupProduct").addEventListener("click", lookupProduct);
+    $("generate").addEventListener("click", generatePromotion);
+
+    ["url", "name", "description", "price", "oldPrice"].forEach(id => {
+      $(id).addEventListener("input", updateMessage);
+    });
+
+    // Abre o WhatsApp Web e baixa a imagem para anexar manualmente.
+    $("shareWhatsApp").addEventListener("click", () => {
+      if (!generatePromotion()) return;
+
+      const message = buildMessage();
+
+      const whatsappUrl =
+        "https://web.whatsapp.com/send?text=" +
+        encodeURIComponent(message);
+
+      const link = document.createElement("a");
+
+      link.href = canvas.toDataURL("image/png");
+      link.download = "promocao-afiliado.png";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.open(
+        whatsappUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      $("status").textContent =
+        "📲 O WhatsApp Web foi aberto com o texto e o link. " +
+        "A imagem foi baixada: anexe o arquivo na conversa e confirme o envio manualmente.";
+    });
+
+    $("download").addEventListener("click", () => {
+      if (!generatePromotion()) return;
+
+      const link = document.createElement("a");
+
+      link.download = "promocao-afiliado.png";
+      link.href = canvas.toDataURL("image/png");
+
+      link.click();
+
+      $("status").textContent =
+        "✅ Imagem baixada com sucesso!";
+    });
+
+    $("copyMessage").addEventListener("click", async () => {
+      if (!generatePromotion()) return;
+
+      try {
+        await navigator.clipboard.writeText(buildMessage());
+
+        $("status").textContent =
+          "📋 Mensagem copiada! Agora você pode colá-la no WhatsApp.";
+      } catch {
+        $("message").focus();
+        $("message").select();
+
+        const copied = document.execCommand("copy");
+
+        $("status").textContent = copied
+          ? "📋 Mensagem copiada!"
+          : "Selecione e copie manualmente a mensagem.";
+      }
+    });
+
+    drawArt();
+    updateMessage();
+  </script>
+</body>
+</html>
