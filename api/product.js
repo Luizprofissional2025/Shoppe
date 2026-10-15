@@ -1,105 +1,173 @@
 // Vercel Serverless Function: /api/product
-// Busca uma oferta na API oficial de Afiliados da Shopee.
+// Resolve links (inclusive links curtos de afiliado), identifica shopId/itemId e
+// consulta productOfferV2 na API oficial de Afiliados da Shopee.
 // Variáveis necessárias na Vercel: SHOPEE_APP_ID e SHOPEE_APP_SECRET.
 
 const { createHash } = require("node:crypto");
 
 const SHOPEE_ENDPOINT = "https://open-api.affiliate.shopee.com.br/graphql";
-const ALLOWED_HOSTS = new Set([
-  "shopee.com.br",
-  "www.shopee.com.br",
-  "shopee.com",
-  "www.shopee.com"
-]);
+const MAX_REDIRECTS = 8;
+const BROWSER_UA =
+  "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36";
 
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-function extractProductIds(rawUrl) {
-  const url = new URL(rawUrl);
-  const host = url.hostname.toLowerCase();
+// Aceita shopee.com.br, shopee.com, subdomínios (ex.: s.shopee.com.br) e shope.ee.
+// Usa comparação exata de sufixo para evitar domínios como "shopee.com.br.evil.com".
+function isShopeeHost(hostname) {
+  const h = String(hostname || "").toLowerCase();
+  return ["shopee.com.br", "shopee.com", "shope.ee"].some(
+    (d) => h === d || h.endsWith("." + d)
+  );
+}
 
-  if (!ALLOWED_HOSTS.has(host)) {
-    throw new Error(
-      "O link precisa ser de um produto em shopee.com.br ou shopee.com. Links curtos de afiliado precisam ser resolvidos antes da consulta."
-    );
+function parseHttpUrl(raw, base) {
+  let url;
+  try {
+    url = new URL(raw, base);
+  } catch {
+    throw new Error("O link informado não é uma URL válida.");
+  }
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("Use um link HTTP ou HTTPS.");
+  }
+  return url;
+}
+
+// Extrai shopId/itemId de uma URL da Shopee. Retorna null se não encontrar.
+function extractProductIds(input, depth = 0) {
+  let url;
+  try {
+    url = input instanceof URL ? input : new URL(input);
+  } catch {
+    return null;
   }
 
-  // https://shopee.com.br/product/{shopId}/{itemId}
-  let match = url.pathname.match(/\/product\/(\d+)\/(\d+)/i);
-  if (match) {
-    return { shopId: match[1], itemId: match[2] };
-  }
+  const path = decodeURIComponent_safe(url.pathname);
+  let m;
 
-  // https://shopee.com.br/nome-do-produto-i.{shopId}.{itemId}
-  match = url.pathname.match(/-i\.(\d+)\.(\d+)/i);
-  if (match) {
-    return { shopId: match[1], itemId: match[2] };
-  }
+  // Link curto de afiliado após redirecionar: /opaanlp/{shopId}/{itemId}
+  // Também cobre /product/{shopId}/{itemId} e /universal-link/product/{shopId}/{itemId}.
+  m = path.match(/\/(?:opaanlp|product)\/(\d+)\/(\d+)(?:[/?#]|$)/i);
+  if (m) return { shopId: m[1], itemId: m[2] };
 
-  // Alguns links incluem os IDs na query string.
-  const shopId = url.searchParams.get("shopid") || url.searchParams.get("shop_id");
-  const itemId = url.searchParams.get("itemid") || url.searchParams.get("item_id");
+  // /nome-do-produto-i.{shopId}.{itemId}
+  m = path.match(/-i\.(\d+)\.(\d+)/i);
+  if (m) return { shopId: m[1], itemId: m[2] };
 
+  // Qualquer caminho terminando em /{shopId}/{itemId} (ex.: novos prefixos da Shopee).
+  m = path.match(/\/(\d{3,})\/(\d{3,})\/?$/);
+  if (m) return { shopId: m[1], itemId: m[2] };
+
+  // IDs na query string.
+  const q = url.searchParams;
+  const shopId = q.get("shopid") || q.get("shop_id") || q.get("shopId");
+  const itemId = q.get("itemid") || q.get("item_id") || q.get("itemId");
   if (shopId && itemId && /^\d+$/.test(shopId) && /^\d+$/.test(itemId)) {
     return { shopId, itemId };
   }
 
-  throw new Error(
-    "Não consegui identificar a loja e o produto nesse link. Use um link de produto da Shopee que contenha os IDs; links curtos de afiliado ainda não são resolvidos automaticamente."
-  );
+  // Parâmetros que carregam outra URL (redirect, url, deeplink...).
+  if (depth < 2) {
+    for (const value of q.values()) {
+      if (/^https?:\/\//i.test(value)) {
+        const nested = extractProductIds(value, depth + 1);
+        if (nested) return nested;
+      }
+    }
+  }
+  return null;
 }
 
+function decodeURIComponent_safe(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 
-const SHORT_LINK_HOSTS = new Set([
-  "s.shopee.com.br",
-  "shope.ee",
-  "s.shopee.co.id",
-  "s.shopee.com"
-]);
+// Procura IDs no HTML de uma página (canonical, og:url, redirecionamentos por JS/meta).
+function extractIdsFromHtml(html, base) {
+  const candidates = [];
+  const patterns = [
+    /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i,
+    /<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+http-equiv=["']?refresh["']?[^>]+content=["'][^"']*url=([^"']+)["']/i,
+    /(?:window\.location(?:\.href)?|location\.href)\s*=\s*["']([^"']+)["']/i
+  ];
+  for (const re of patterns) {
+    const m = html.match(re);
+    if (m) candidates.push(m[1]);
+  }
+  for (const c of candidates) {
+    try {
+      const ids = extractProductIds(new URL(c.replace(/&amp;/g, "&"), base));
+      if (ids) return { ids, next: c };
+    } catch {
+      /* ignora candidato inválido */
+    }
+  }
+  return { ids: null, next: candidates[0] || null };
+}
 
-async function resolveProductUrl(rawUrl) {
-  let current = new URL(rawUrl);
-  if (!["http:", "https:"].includes(current.protocol)) throw new Error("Use um link HTTP ou HTTPS.");
-  let host = current.hostname.toLowerCase();
-  if (!ALLOWED_HOSTS.has(host) && !SHORT_LINK_HOSTS.has(host)) throw new Error("O link precisa pertencer à Shopee.");
+// Segue os redirecionamentos manualmente (somente hosts da Shopee) até encontrar os IDs.
+async function resolveProduct(rawUrl) {
+  let current = parseHttpUrl(rawUrl);
+  if (!isShopeeHost(current.hostname)) {
+    throw new Error("O link precisa pertencer à Shopee (shopee.com.br ou s.shopee.com.br).");
+  }
 
-  for (let i = 0; i < 6; i++) {
-    host = current.hostname.toLowerCase();
-    if (ALLOWED_HOSTS.has(host)) return current.href;
-    if (!SHORT_LINK_HOSTS.has(host)) throw new Error("O link redirecionou para um domínio que não é da Shopee.");
+  const chain = [current.href];
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    // Se a URL atual já contém os IDs, não precisamos baixar a página.
+    const direct = extractProductIds(current);
+    if (direct) return { ids: direct, resolvedUrl: current.href, chain };
+
+    if (hop === MAX_REDIRECTS) break;
 
     const response = await fetch(current.href, {
       method: "GET",
       redirect: "manual",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ShopeePromoBot/1.0)" },
+      headers: {
+        "User-Agent": BROWSER_UA,
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "pt-BR,pt;q=0.9"
+      },
       signal: AbortSignal.timeout(10000)
     });
+
+    let nextUrl = null;
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
       if (!location) throw new Error("A Shopee retornou um redirecionamento sem destino.");
-      current = new URL(location, current);
-      if (!["http:", "https:"].includes(current.protocol)) throw new Error("O link redirecionou para um protocolo inválido.");
-      host = current.hostname.toLowerCase();
-      if (!ALLOWED_HOSTS.has(host) && !SHORT_LINK_HOSTS.has(host)) throw new Error("O link redirecionou para um domínio que não é da Shopee.");
-      continue;
+      nextUrl = parseHttpUrl(location, current);
+    } else {
+      const html = (await response.text().catch(() => "")).slice(0, 300000);
+      const found = extractIdsFromHtml(html, current);
+      if (found.ids) {
+        return { ids: found.ids, resolvedUrl: current.href, chain };
+      }
+      if (found.next) nextUrl = parseHttpUrl(found.next, current);
     }
 
-    const html = await response.text().catch(() => "");
-    const meta = html.match(/<meta[^>]+http-equiv=["']?refresh["']?[^>]+content=["'][^;]+;\s*url=([^"']+)/i);
-    const js = html.match(/(?:window\.location(?:\.href)?|location\.href)\s*=\s*["']([^"']+)["']/i);
-    const target = (meta && meta[1]) || (js && js[1]);
-    if (target) {
-      current = new URL(target, current);
-      host = current.hostname.toLowerCase();
-      if (!ALLOWED_HOSTS.has(host) && !SHORT_LINK_HOSTS.has(host)) throw new Error("O link redirecionou para um domínio que não é da Shopee.");
-      continue;
+    if (!nextUrl) break;
+    if (!isShopeeHost(nextUrl.hostname)) {
+      throw new Error("O link redirecionou para um domínio que não é da Shopee.");
     }
-    throw new Error("Não foi possível resolver automaticamente esse link curto. Tente um link completo do produto Shopee.");
+    current = nextUrl;
+    chain.push(current.href);
   }
-  throw new Error("O link curto excedeu o limite de redirecionamentos.");
+
+  const error = new Error(
+    "Não consegui encontrar o ID da loja e do produto nesse link, nem seguindo os redirecionamentos."
+  );
+  error.chain = chain;
+  throw error;
 }
 
 function asFiniteNumber(value) {
@@ -110,6 +178,17 @@ function asFiniteNumber(value) {
 
 function sendError(res, status, error, details, extra = {}) {
   return res.status(status).json({ error, details, ...extra });
+}
+
+// Extrai a primeira mensagem de erro GraphQL/HTTP da resposta da Shopee, sem segredos.
+function describeProviderError(data) {
+  if (!data || !Array.isArray(data.errors) || data.errors.length === 0) return null;
+  const first = data.errors[0] || {};
+  const ext = first.extensions || {};
+  return {
+    code: ext.code ?? first.code ?? null,
+    message: String(ext.message || first.message || "Erro GraphQL sem mensagem.").slice(0, 500)
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -132,32 +211,39 @@ module.exports = async function handler(req, res) {
     );
   }
 
-  const productUrl = req.body && req.body.productUrl;
-  if (typeof productUrl !== "string" || productUrl.length > 2048) {
-    return sendError(
-      res,
-      400,
-      "Link de afiliado inválido.",
-      "Envie o link no campo productUrl."
-    );
+  let body = req.body;
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = null;
+    }
+  }
+  const productUrl = body && typeof body.productUrl === "string" ? body.productUrl.trim() : null;
+  if (!productUrl || productUrl.length > 2048) {
+    return sendError(res, 400, "Link de afiliado inválido.", "Envie o link no campo productUrl.");
   }
 
   let ids;
   let resolvedProductUrl;
   try {
-    resolvedProductUrl = await resolveProductUrl(productUrl);
-    ids = extractProductIds(resolvedProductUrl);
+    const resolved = await resolveProduct(productUrl);
+    ids = resolved.ids;
+    resolvedProductUrl = resolved.resolvedUrl;
   } catch (error) {
+    const timedOut = error && error.name === "TimeoutError";
+    const chain = error && error.chain ? ` Caminho seguido: ${error.chain.join(" → ")}` : "";
     return sendError(
       res,
       400,
       "Não foi possível identificar o produto pelo link informado.",
-      error.message || "Link inválido."
+      timedOut
+        ? "A Shopee demorou demais para resolver o link curto. Tente novamente."
+        : (error.message || "Link inválido.") + chain
     );
   }
 
   // A API da Shopee define itemId e shopId como Int64.
-  // Mantemos os IDs como dígitos e os enviamos como valores numéricos JSON.
   const shopIdNumber = Number(ids.shopId);
   const itemIdNumber = Number(ids.itemId);
   if (!Number.isSafeInteger(shopIdNumber) || !Number.isSafeInteger(itemIdNumber)) {
@@ -195,31 +281,33 @@ module.exports = async function handler(req, res) {
 
   const payload = JSON.stringify({
     query,
-    variables: {
-      itemId: itemIdNumber,
-      shopId: shopIdNumber,
-      page: 1,
-      limit: 1
-    }
+    variables: { itemId: itemIdNumber, shopId: shopIdNumber, page: 1, limit: 10 }
   });
 
+  // Assinatura oficial: SHA256(AppId + Timestamp + Payload + Secret), sobre o corpo EXATO enviado.
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = sha256(appId + timestamp + payload + secret);
-  const authorization =
-    `SHA256 Credential=${appId}, Timestamp=${timestamp}, Signature=${signature}`;
+  const authorization = `SHA256 Credential=${appId}, Timestamp=${timestamp}, Signature=${signature}`;
 
   try {
     const apiResponse = await fetch(SHOPEE_ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authorization
-      },
+      headers: { "Content-Type": "application/json", Authorization: authorization },
       body: payload,
       signal: AbortSignal.timeout(15000)
     });
 
     const data = await apiResponse.json().catch(() => null);
+
+    // Erros GraphQL podem vir com HTTP 200 ou com 4xx; em ambos os casos expomos
+    // código e mensagem do provedor (nunca App ID, segredo ou assinatura).
+    const providerError = describeProviderError(data);
+    if (providerError) {
+      return sendError(res, 502, "A Shopee retornou um erro na consulta.", providerError.message, {
+        code: providerError.code,
+        providerStatus: apiResponse.status
+      });
+    }
 
     if (!apiResponse.ok) {
       return sendError(
@@ -231,69 +319,53 @@ module.exports = async function handler(req, res) {
       );
     }
 
-    if (data && Array.isArray(data.errors) && data.errors.length > 0) {
-      const firstError = data.errors[0] || {};
-      const extensions = firstError.extensions || {};
-      const providerCode = extensions.code ?? firstError.code ?? null;
-      const providerMessage = String(
-        extensions.message || firstError.message || "Erro GraphQL sem mensagem."
-      ).slice(0, 500);
-
-      // Mantém o código/mensagem do provedor para que o próximo diagnóstico
-      // não esconda a causa original. Nunca retorna App ID, segredo ou assinatura.
-      return sendError(
-        res,
-        502,
-        "A Shopee retornou um erro na consulta.",
-        providerMessage,
-        { code: providerCode }
-      );
-    }
-
     const connection = data && data.data && data.data.productOfferV2;
     const nodes = connection && Array.isArray(connection.nodes) ? connection.nodes : [];
-    const product = nodes.find((node) =>
-      String(node.itemId) === ids.itemId &&
-      String(node.shopId) === ids.shopId
+    const node = nodes.find(
+      (n) => String(n.itemId) === ids.itemId && String(n.shopId) === ids.shopId
     );
 
-    if (!product) {
+    if (!node) {
       return sendError(
         res,
         404,
         "A Shopee não retornou uma oferta correspondente a esse produto.",
-        "Confirme se o produto está disponível na API de Afiliados e se os IDs do link correspondem ao produto."
+        `IDs identificados: loja ${ids.shopId}, produto ${ids.itemId}. O produto pode não participar do Programa de Afiliados.`
       );
     }
 
-    const price = asFiniteNumber(product.priceMin);
-
-    // Não inventamos preço anterior: a API não fornece um campo de preço antigo
-    // nesta consulta. priceMax é o limite superior da faixa, não preço anterior.
-    return res.status(200).json({
-      name: product.productName || "",
+    const price = asFiniteNumber(node.priceMin);
+    const product = {
+      productId: String(node.itemId),
+      name: node.productName || "",
       description: "",
       price,
+      // A API não fornece preço anterior nesta consulta; não inventamos.
       oldPrice: null,
       imageUrl:
-        typeof product.imageUrl === "string" && product.imageUrl.startsWith("https://")
-          ? product.imageUrl
+        typeof node.imageUrl === "string" && node.imageUrl.startsWith("https://")
+          ? node.imageUrl
           : "",
+      shopName: node.shopName || "",
+      priceMax: asFiniteNumber(node.priceMax),
+      productUrl: node.productLink || resolvedProductUrl || productUrl
+    };
+
+    // `product` é o formato lido pelo index.html; os campos na raiz mantêm
+    // compatibilidade com a versão anterior da resposta.
+    return res.status(200).json({
+      product,
+      ...product,
       // Preserva exatamente o link que o usuário forneceu para manter o tracking.
-      affiliateUrl: productUrl,
-      productUrl: product.productLink || resolvedProductUrl || productUrl,
-      shopName: product.shopName || "",
-      priceMax: asFiniteNumber(product.priceMax)
+      affiliateUrl: productUrl
     });
   } catch (error) {
     const timedOut = error && error.name === "TimeoutError";
     return sendError(
       res,
       502,
-      timedOut
-        ? "A consulta à Shopee demorou demais."
-        : "Não foi possível conectar à API da Shopee.",
-      "Confira os logs da função /api/product na Vercel. A mensagem interna não é exposta para evitar revelar dados sensíveis."
+      timedOut ? "A consulta à Shopee demorou demais." : "Não foi possível conectar à API da Shopee.",
+      "Confira os logs da função /api/product na Vercel."
     );
   }
 };
