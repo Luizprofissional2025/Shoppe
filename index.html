@@ -426,12 +426,17 @@
       <div class="status" id="batchStatus" role="status" aria-live="polite" hidden></div>
 
       <div class="actions" id="batchActions" hidden>
-        <button class="primary" id="batchSendNext" type="button" style="margin-top:0">📲 Enviar próxima</button>
+        <button class="primary" id="batchSendNext" type="button" style="margin-top:0">📲 Enviar todas pelo WhatsApp</button>
         <button class="secondary" id="batchDownloadAll" type="button">⬇️ Baixar todas as imagens</button>
       </div>
+      <label style="font-weight:400;margin:12px 0 0" id="batchAttachLabel" hidden>
+        <input type="checkbox" id="batchAttach" style="width:auto;margin-right:6px">
+        Anexar também a arte PNG (somente celular)
+      </label>
       <div class="hint" id="batchActionsHint" hidden>
-        O WhatsApp não permite envio automático em massa: cada promoção é enviada com um toque/clique seu.
-        No celular, a imagem e o texto vão juntos na mesma mensagem; no computador, o texto abre no WhatsApp Web e a imagem é baixada para você anexar.
+        Cada mensagem vai com o texto e o link de afiliado; o WhatsApp mostra sozinho o cartão com a foto e o título do produto, como nas suas conversas.
+        Clique em “Enviar todas pelo WhatsApp”: a primeira abre pronta, você escolhe a conversa/grupo e envia; depois o mesmo botão abre a próxima, até acabar.
+        O WhatsApp não permite que um site envie várias mensagens sozinho — por isso a confirmação em cada uma.
       </div>
 
       <div class="batch-grid" id="batchResults"></div>
@@ -1094,12 +1099,14 @@
 
     function updateSendNextButton() {
       const ready = batchItems.filter(i => i.ready);
-      const pending = ready.filter(i => !i.sent).length;
+      const sentCount = ready.filter(i => i.sent).length;
+      const pending = ready.length - sentCount;
       const btn = $("batchSendNext");
-      btn.disabled = pending === 0;
-      btn.textContent = pending === 0
-        ? "✅ Todas enviadas"
-        : "📲 Enviar próxima (" + pending + " restante" + (pending > 1 ? "s" : "") + ")";
+      btn.disabled = ready.length === 0 || pending === 0;
+      if (ready.length === 0) btn.textContent = "📲 Enviar todas pelo WhatsApp";
+      else if (pending === 0) btn.textContent = "✅ Todas enviadas (" + sentCount + ")";
+      else if (sentCount === 0) btn.textContent = "📲 Enviar todas pelo WhatsApp (" + pending + ")";
+      else btn.textContent = "➡️ Enviar próxima (" + (sentCount + 1) + " de " + ready.length + ")";
     }
 
     function triggerDownload(blob, filename) {
@@ -1116,33 +1123,50 @@
     function markSent(item) {
       item.sent = true;
       item.card.classList.add("sent");
-      setCardStatus(item, "📲 Enviada (marcada por você). " + item.name, "done");
+      setCardStatus(item, "📲 Aberta no WhatsApp. " + item.name, "done");
       updateSendNextButton();
     }
 
-    // Envio: no celular usa o compartilhamento nativo com imagem + texto;
-    // no computador abre o WhatsApp Web com o texto e baixa a imagem para anexar.
+    const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let waWindow = null; // mesma aba do WhatsApp Web é reutilizada em todos os envios
+
+    if (IS_MOBILE && navigator.canShare) {
+      $("batchAttachLabel").hidden = false;
+    }
+
+    // Abre o WhatsApp com o texto pronto (o link de afiliado gera a prévia com foto e título).
+    // O usuário escolhe a conversa e confirma o envio.
     async function sendBatchItem(item) {
-      if (!item.ready || !item.file) return;
+      if (!item.ready) return;
       const text = item.textarea.value;
 
-      if (navigator.canShare && navigator.canShare({ files: [item.file] })) {
+      // Opcional no celular: anexa a arte PNG junto com o texto.
+      if ($("batchAttach").checked && item.file && navigator.canShare && navigator.canShare({ files: [item.file] })) {
         try {
           await navigator.share({ files: [item.file], text });
           markSent(item);
           return;
         } catch (error) {
-          if (error && error.name === "AbortError") return; // usuário cancelou
-          // outra falha: cai no modo WhatsApp Web
+          if (error && error.name === "AbortError") return;
         }
       }
 
-      triggerDownload(item.file, item.file.name);
-      window.open(
-        "https://web.whatsapp.com/send?text=" + encodeURIComponent(text),
-        "_blank",
-        "noopener,noreferrer"
-      );
+      const url = IS_MOBILE
+        ? "https://wa.me/?text=" + encodeURIComponent(text)
+        : "https://web.whatsapp.com/send?text=" + encodeURIComponent(text);
+
+      if (IS_MOBILE) {
+        window.location.href = url;
+      } else if (waWindow && !waWindow.closed) {
+        waWindow.location.href = url;
+        waWindow.focus();
+      } else {
+        waWindow = window.open(url, "wa_promos");
+        if (!waWindow) {
+          batchStatus("⚠️ O navegador bloqueou a abertura do WhatsApp. Permita pop-ups para este site e clique de novo.");
+          return;
+        }
+      }
       markSent(item);
     }
 
