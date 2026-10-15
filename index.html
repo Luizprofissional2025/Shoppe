@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -751,7 +750,7 @@
           body: JSON.stringify({ productUrl })
         });
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || "Não foi possível consultar o produto.");
+        if (!response.ok) throw new Error((result.error || "Não foi possível consultar o produto.") + (result.details ? " Detalhe: " + result.details : "") + (result.code ? " (código " + result.code + ")" : ""));
         const product = result.product || {};
         // Only replace fields when the API actually returned a non-empty value.
         if (product.name) $("name").value = product.name;
