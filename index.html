@@ -223,6 +223,83 @@
       h1 { font-size: 1.05rem; }
       .sub { font-size: .82rem; }
     }
+
+    /* ===== Promoções em lote ===== */
+    .batch-panel { grid-column: 1 / -1; }
+
+    .batch-validation {
+      list-style: none;
+      margin: 10px 0 0;
+      padding: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .batch-validation li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: .85rem;
+      min-width: 0;
+    }
+
+    .badge {
+      flex-shrink: 0;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.ok { background: #dcf5e3; color: #176b2c; border: 1px solid #9fdbb0; }
+    .badge.bad { background: #fde4e4; color: #9b1c1c; border: 1px solid #f2b3b3; }
+
+    .batch-validation .link-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+    }
+
+    .batch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    .batch-card {
+      border: 1px solid #e7e7e7;
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+      min-width: 0;
+    }
+
+    .batch-card.sent { border-color: #9fdbb0; }
+
+    .batch-card .card-status {
+      font-size: .82rem;
+      line-height: 1.45;
+      margin-bottom: 10px;
+      color: #555;
+      overflow-wrap: anywhere;
+    }
+
+    .batch-card .card-status.error { color: #9b1c1c; }
+    .batch-card .card-status.done { color: #176b2c; }
+
+    .batch-card canvas { max-width: 100%; }
+    .batch-card [hidden] { display: none !important; }
+
+    .batch-card textarea {
+      min-height: 190px;
+      margin-top: 12px;
+      font-size: .85rem;
+    }
+
+    .batch-card .actions button { min-width: 0; padding: 10px 8px; font-size: .85rem; }
   </style>
 </head>
 
@@ -328,17 +405,48 @@
         O link de afiliado aparece como link clicável na mensagem do WhatsApp.
       </div>
     </section>
+
+    <section class="panel batch-panel" id="batchPanel">
+      <h2>📦 Promoções em lote (até 20 links)</h2>
+
+      <label for="batchLinks">🔗 Cole seus links de afiliado, um por linha</label>
+      <textarea
+        id="batchLinks"
+        rows="6"
+        style="min-height:130px"
+        spellcheck="false"
+        placeholder="https://s.shopee.com.br/xxxxxxxx&#10;https://s.shopee.com.br/yyyyyyyy&#10;..."
+      ></textarea>
+
+      <div class="hint" id="batchCount">Nenhum link informado.</div>
+      <ul class="batch-validation" id="batchValidation" aria-live="polite"></ul>
+
+      <button class="primary" id="batchGenerate" type="button" disabled>🎨 Gerar promoções</button>
+
+      <div class="status" id="batchStatus" role="status" aria-live="polite" hidden></div>
+
+      <div class="actions" id="batchActions" hidden>
+        <button class="primary" id="batchSendNext" type="button" style="margin-top:0">📲 Enviar próxima</button>
+        <button class="secondary" id="batchDownloadAll" type="button">⬇️ Baixar todas as imagens</button>
+      </div>
+      <div class="hint" id="batchActionsHint" hidden>
+        O WhatsApp não permite envio automático em massa: cada promoção é enviada com um toque/clique seu.
+        No celular, a imagem e o texto vão juntos na mesma mensagem; no computador, o texto abre no WhatsApp Web e a imagem é baixada para você anexar.
+      </div>
+
+      <div class="batch-grid" id="batchResults"></div>
+    </section>
   </main>
 
   <footer>
-    A busca automática depende de acesso autorizado à API de afiliados da Shopee. Dados ausentes podem ser preenchidos manualmente. O compartilhamento não envia mensagens automaticamente.
+    A busca automática depende de acesso autorizado à API de afiliados da Shopee. Dados ausentes podem ser preenchidos manualmente. O compartilhamento não envia mensagens automaticamente: cada envio é confirmado por você.
   </footer>
 
   <script>
     "use strict";
 
     const canvas = document.getElementById("art");
-    const ctx = canvas.getContext("2d");
+    let ctx = canvas.getContext("2d"); // "let": o lote troca temporariamente o canvas de desenho
     const $ = id => document.getElementById(id);
 
     let productImage = null;
@@ -375,8 +483,12 @@
     }
 
     function getDiscount() {
-      const oldValue = parsePrice($("oldPrice").value);
-      const currentValue = parsePrice($("price").value);
+      return discountOf($("oldPrice").value, $("price").value);
+    }
+
+    function discountOf(oldRaw, currentRaw) {
+      const oldValue = parsePrice(oldRaw);
+      const currentValue = parsePrice(currentRaw);
 
       if (
         oldValue === null ||
@@ -411,12 +523,22 @@
     }
 
     function buildMessage() {
-      const name = $("name").value.trim();
-      const description = $("description").value.trim();
-      const price = money($("price").value);
-      const oldPrice = money($("oldPrice").value);
-      const url = getProductUrl();
-      const discount = getDiscount();
+      return buildMessageData({
+        name: $("name").value,
+        description: $("description").value,
+        price: $("price").value,
+        oldPrice: $("oldPrice").value,
+        url: getProductUrl()
+      });
+    }
+
+    function buildMessageData(d) {
+      const name = String(d.name || "").trim();
+      const description = String(d.description || "").trim();
+      const price = money(d.price);
+      const oldPrice = money(d.oldPrice);
+      const url = d.url;
+      const discount = discountOf(d.oldPrice, d.price);
 
       const lines = [
         "🚨🔥 *OFERTA IMPERDÍVEL!* 🔥🚨",
@@ -551,14 +673,22 @@
     }
 
     function drawArt() {
+      drawArtData({
+        name: $("name").value,
+        price: $("price").value,
+        oldPrice: $("oldPrice").value
+      }, productImage);
+    }
+
+    function drawArtData(d, image) {
       drawCover();
 
-      const name = $("name").value.trim() || "Nome do produto";
-      const price = money($("price").value) || "PREÇO ESPECIAL";
-      const oldPrice = money($("oldPrice").value);
+      const name = String(d.name || "").trim() || "Nome do produto";
+      const price = money(d.price) || "PREÇO ESPECIAL";
+      const oldPrice = money(d.oldPrice);
 
-      if (productImage) {
-        drawImageContain(productImage, 120, 290, 660, 440);
+      if (image) {
+        drawImageContain(image, 120, 290, 660, 440);
       } else {
         roundedRect(120, 290, 660, 440, 22, "#fff2ec");
 
@@ -856,6 +986,358 @@
 
     drawArt();
     updateMessage();
+
+    // ===================== Promoções em lote =====================
+    const BATCH_MAX = 20;
+    const BATCH_CONCURRENCY = 3;
+    const SHOPEE_HOSTS = ["shopee.com.br", "shopee.com", "shope.ee"];
+    let batchItems = [];
+    let batchBusy = false;
+
+    function isShopeeLink(raw) {
+      try {
+        const u = new URL(raw);
+        if (!["http:", "https:"].includes(u.protocol)) return false;
+        const h = u.hostname.toLowerCase();
+        return SHOPEE_HOSTS.some(d => h === d || h.endsWith("." + d));
+      } catch {
+        return false;
+      }
+    }
+
+    // Lê o campo: cada link separado por quebra de linha ou espaço.
+    function parseBatchLinks() {
+      const tokens = $("batchLinks").value.split(/\s+/).filter(Boolean);
+      const seen = new Set();
+
+      return tokens.map((raw, index) => {
+        if (index >= BATCH_MAX) return { raw, ok: false, reason: "Acima do limite de " + BATCH_MAX + " links" };
+        if (!isShopeeLink(raw)) return { raw, ok: false, reason: "Não é um link da Shopee" };
+        if (seen.has(raw)) return { raw, ok: false, reason: "Link repetido" };
+        seen.add(raw);
+        return { raw, ok: true, reason: "Link válido" };
+      });
+    }
+
+    function renderBatchValidation() {
+      const list = parseBatchLinks();
+      const ul = $("batchValidation");
+      ul.textContent = "";
+
+      list.forEach(item => {
+        const li = document.createElement("li");
+        const badge = document.createElement("span");
+        badge.className = "badge " + (item.ok ? "ok" : "bad");
+        badge.textContent = item.ok ? "✓ " + item.reason : "✗ " + item.reason;
+        const text = document.createElement("span");
+        text.className = "link-text";
+        text.textContent = item.raw;
+        li.append(badge, text);
+        ul.appendChild(li);
+      });
+
+      const valid = list.filter(i => i.ok).length;
+      $("batchCount").textContent = list.length
+        ? valid + " link(s) válido(s) de " + list.length + " informado(s) — limite de " + BATCH_MAX + "."
+        : "Nenhum link informado.";
+      $("batchGenerate").disabled = batchBusy || valid === 0;
+      return list.filter(i => i.ok).map(i => i.raw);
+    }
+
+    $("batchLinks").addEventListener("input", renderBatchValidation);
+
+    function batchStatus(text) {
+      const el = $("batchStatus");
+      el.hidden = false;
+      el.textContent = text;
+    }
+
+    function loadImageElement(src, cors) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        if (cors) img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    // Tenta direto (CDN com CORS); se bloquear, usa o proxy do próprio site (/api/image).
+    async function loadBatchImage(imageUrl) {
+      if (!imageUrl) return null;
+      try {
+        return await loadImageElement(imageUrl, true);
+      } catch {
+        try {
+          return await loadImageElement("/api/image?url=" + encodeURIComponent(imageUrl), false);
+        } catch {
+          return null;
+        }
+      }
+    }
+
+    // Desenha a arte no canvas do cartão reutilizando as mesmas funções da arte individual.
+    function renderCardArt(item, data, image) {
+      const previous = ctx;
+      ctx = item.canvas.getContext("2d");
+      try {
+        drawArtData(data, image);
+      } finally {
+        ctx = previous;
+      }
+    }
+
+    function setCardStatus(item, text, kind) {
+      item.statusEl.textContent = text;
+      item.statusEl.className = "card-status" + (kind ? " " + kind : "");
+    }
+
+    function updateSendNextButton() {
+      const ready = batchItems.filter(i => i.ready);
+      const pending = ready.filter(i => !i.sent).length;
+      const btn = $("batchSendNext");
+      btn.disabled = pending === 0;
+      btn.textContent = pending === 0
+        ? "✅ Todas enviadas"
+        : "📲 Enviar próxima (" + pending + " restante" + (pending > 1 ? "s" : "") + ")";
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+
+    function markSent(item) {
+      item.sent = true;
+      item.card.classList.add("sent");
+      setCardStatus(item, "📲 Enviada (marcada por você). " + item.name, "done");
+      updateSendNextButton();
+    }
+
+    // Envio: no celular usa o compartilhamento nativo com imagem + texto;
+    // no computador abre o WhatsApp Web com o texto e baixa a imagem para anexar.
+    async function sendBatchItem(item) {
+      if (!item.ready || !item.file) return;
+      const text = item.textarea.value;
+
+      if (navigator.canShare && navigator.canShare({ files: [item.file] })) {
+        try {
+          await navigator.share({ files: [item.file], text });
+          markSent(item);
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") return; // usuário cancelou
+          // outra falha: cai no modo WhatsApp Web
+        }
+      }
+
+      triggerDownload(item.file, item.file.name);
+      window.open(
+        "https://web.whatsapp.com/send?text=" + encodeURIComponent(text),
+        "_blank",
+        "noopener,noreferrer"
+      );
+      markSent(item);
+    }
+
+    function buildCard(index, link) {
+      const card = document.createElement("div");
+      card.className = "batch-card";
+
+      const statusEl = document.createElement("div");
+      statusEl.className = "card-status";
+
+      const cardCanvas = document.createElement("canvas");
+      cardCanvas.width = 900;
+      cardCanvas.height = 1125;
+      cardCanvas.setAttribute("aria-label", "Arte da promoção " + (index + 1));
+
+      const textarea = document.createElement("textarea");
+      textarea.setAttribute("aria-label", "Mensagem da promoção " + (index + 1));
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const sendBtn = document.createElement("button");
+      sendBtn.type = "button";
+      sendBtn.className = "primary";
+      sendBtn.style.marginTop = "0";
+      sendBtn.textContent = "📲 Enviar";
+
+      const dlBtn = document.createElement("button");
+      dlBtn.type = "button";
+      dlBtn.className = "secondary";
+      dlBtn.textContent = "⬇️ Imagem";
+
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "secondary";
+      copyBtn.textContent = "📋 Texto";
+
+      actions.append(sendBtn, dlBtn, copyBtn);
+      card.append(statusEl, cardCanvas, textarea, actions);
+      // Só aparecem quando a promoção fica pronta (evita arte em branco em caso de erro).
+      [cardCanvas, textarea, actions].forEach(el => { el.hidden = true; });
+
+      const item = {
+        index, link, card, statusEl, canvas: cardCanvas, textarea,
+        ready: false, sent: false, file: null, name: "", retryBtn: null
+      };
+
+      sendBtn.addEventListener("click", () => sendBatchItem(item));
+      dlBtn.addEventListener("click", () => {
+        if (item.file) triggerDownload(item.file, item.file.name);
+      });
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(textarea.value);
+        } catch {
+          textarea.focus();
+          textarea.select();
+          document.execCommand("copy");
+        }
+        copyBtn.textContent = "✅ Copiado";
+        setTimeout(() => { copyBtn.textContent = "📋 Texto"; }, 1500);
+      });
+
+      return item;
+    }
+
+    async function processBatchItem(item) {
+      item.ready = false;
+      setCardStatus(item, "⏳ Buscando dados do produto…");
+      try {
+        const response = await fetch("/api/product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productUrl: item.link })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            (result.error || "Não foi possível consultar o produto.") +
+            (result.details ? " Detalhe: " + result.details : "") +
+            (result.code ? " (código " + result.code + ")" : "")
+          );
+        }
+
+        const product = result.product || {};
+        if (!product.name) throw new Error("A Shopee não retornou o nome do produto.");
+
+        // Somente dados devolvidos pela Shopee; nada é inventado.
+        const data = {
+          name: product.name,
+          description: product.description || "",
+          price: product.price != null ? String(product.price).replace(".", ",") : "",
+          oldPrice: product.oldPrice != null ? String(product.oldPrice).replace(".", ",") : "",
+          url: item.link // link de afiliado original, sem alterações
+        };
+
+        const image = await loadBatchImage(product.imageUrl);
+        renderCardArt(item, data, image);
+        item.textarea.value = buildMessageData(data);
+        item.name = product.name;
+
+        item.file = await new Promise(resolve => item.canvas.toBlob(blob => {
+          resolve(blob ? new File([blob], "promocao-" + (item.index + 1) + ".png", { type: "image/png" }) : null);
+        }, "image/png"));
+
+        item.ready = true;
+        [item.canvas, item.textarea, item.textarea.nextElementSibling].forEach(el => { el.hidden = false; });
+        setCardStatus(
+          item,
+          (image ? "✅ Pronta. " : "✅ Pronta, mas sem imagem (não foi possível carregá-la). ") + product.name,
+          "done"
+        );
+      } catch (error) {
+        setCardStatus(item, "⚠️ " + (error.message || "Falha ao gerar esta promoção."), "error");
+        if (!item.retryBtn) {
+          item.retryBtn = document.createElement("button");
+          item.retryBtn.type = "button";
+          item.retryBtn.className = "secondary";
+          item.retryBtn.style.cssText = "width:100%;margin-bottom:10px";
+          item.retryBtn.textContent = "🔄 Tentar novamente";
+          item.retryBtn.addEventListener("click", async () => {
+            item.retryBtn.disabled = true;
+            await processBatchItem(item);
+            item.retryBtn.disabled = false;
+            if (item.ready) { item.retryBtn.remove(); item.retryBtn = null; }
+            finishBatchSummary();
+          });
+          item.statusEl.after(item.retryBtn);
+        }
+      }
+      updateSendNextButton();
+    }
+
+    function finishBatchSummary() {
+      const ok = batchItems.filter(i => i.ready).length;
+      const failed = batchItems.length - ok;
+      batchStatus(
+        "✅ " + ok + " promoção(ões) pronta(s)" +
+        (failed ? " • ⚠️ " + failed + " com erro (use “Tentar novamente” no cartão)." : ".") +
+        " Revise os textos e envie."
+      );
+    }
+
+    $("batchGenerate").addEventListener("click", async () => {
+      if (batchBusy) return;
+      const links = renderBatchValidation();
+      if (!links.length) return;
+
+      batchBusy = true;
+      $("batchGenerate").disabled = true;
+      $("batchActions").hidden = false;
+      $("batchActionsHint").hidden = false;
+
+      const results = $("batchResults");
+      results.textContent = "";
+      batchItems = links.map((link, index) => buildCard(index, link));
+      batchItems.forEach(item => results.appendChild(item.card));
+      batchItems.forEach(item => setCardStatus(item, "⏳ Na fila…"));
+      updateSendNextButton();
+      batchStatus("Gerando " + links.length + " promoção(ões)…");
+
+      // Pequena concorrência para não sobrecarregar a API da Shopee.
+      let next = 0;
+      const worker = async () => {
+        while (next < batchItems.length) {
+          const item = batchItems[next++];
+          await processBatchItem(item);
+          batchStatus("Gerando… " + batchItems.filter(i => i.ready || i.statusEl.classList.contains("error")).length + " de " + batchItems.length);
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, batchItems.length) }, worker));
+
+      batchBusy = false;
+      renderBatchValidation();
+      finishBatchSummary();
+      updateSendNextButton();
+    });
+
+    $("batchSendNext").addEventListener("click", () => {
+      const item = batchItems.find(i => i.ready && !i.sent);
+      if (item) {
+        item.card.scrollIntoView({ behavior: "smooth", block: "center" });
+        sendBatchItem(item);
+      }
+    });
+
+    $("batchDownloadAll").addEventListener("click", async () => {
+      const ready = batchItems.filter(i => i.ready && i.file);
+      for (const item of ready) {
+        triggerDownload(item.file, item.file.name);
+        await new Promise(r => setTimeout(r, 350));
+      }
+    });
+
+    renderBatchValidation();
   </script>
 </body>
 </html>
