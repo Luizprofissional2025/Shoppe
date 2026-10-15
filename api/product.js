@@ -7,8 +7,13 @@ const { createHash } = require("node:crypto");
 
 const SHOPEE_ENDPOINT = "https://open-api.affiliate.shopee.com.br/graphql";
 const MAX_REDIRECTS = 8;
-const BROWSER_UA =
-  "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36";
+// Ordem importa: o primeiro é o que já recebia redirecionamento 302 nos testes reais.
+const USER_AGENTS = [
+  { name: "bot", value: "Mozilla/5.0 (compatible; ShopeePromoBot/1.0)" },
+  { name: "curl", value: "curl/8.5.0" },
+  { name: "preview", value: "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" },
+  { name: "mobile", value: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36" }
+];
 
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -113,7 +118,32 @@ function extractIdsFromHtml(html, base) {
   return { ids: null, next: candidates[0] || null };
 }
 
+// Busca uma URL sem seguir redirecionamentos automaticamente.
+function fetchHop(href, userAgent) {
+  return fetch(href, {
+    method: "GET",
+    redirect: "manual",
+    headers: {
+      "User-Agent": userAgent,
+      Accept: "text/html,application/xhtml+xml,*/*",
+      "Accept-Language": "pt-BR,pt;q=0.9"
+    },
+    signal: AbortSignal.timeout(8000)
+  });
+}
+
+// IDs escritos diretamente no HTML (links /opaanlp/x/y, /product/x/y ou -i.x.y).
+function scanHtmlForIds(html) {
+  let m = html.match(/\/(?:opaanlp|product)\/(\d+)\/(\d+)/i);
+  if (m) return { shopId: m[1], itemId: m[2] };
+  m = html.match(/-i\.(\d+)\.(\d+)/i);
+  if (m) return { shopId: m[1], itemId: m[2] };
+  return null;
+}
+
 // Segue os redirecionamentos manualmente (somente hosts da Shopee) até encontrar os IDs.
+// A Shopee responde de forma diferente conforme o User-Agent (302 para bots/crawlers,
+// página HTML para navegadores), então tentamos mais de um.
 async function resolveProduct(rawUrl) {
   let current = parseHttpUrl(rawUrl);
   if (!isShopeeHost(current.hostname)) {
@@ -121,39 +151,46 @@ async function resolveProduct(rawUrl) {
   }
 
   const chain = [current.href];
+  const notes = [];
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    // Se a URL atual já contém os IDs, não precisamos baixar a página.
     const direct = extractProductIds(current);
     if (direct) return { ids: direct, resolvedUrl: current.href, chain };
-
     if (hop === MAX_REDIRECTS) break;
 
-    const response = await fetch(current.href, {
-      method: "GET",
-      redirect: "manual",
-      headers: {
-        "User-Agent": BROWSER_UA,
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "pt-BR,pt;q=0.9"
-      },
-      signal: AbortSignal.timeout(10000)
-    });
-
     let nextUrl = null;
-    chain[chain.length - 1] += ` [HTTP ${response.status}]`;
 
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location) throw new Error("A Shopee retornou um redirecionamento sem destino.");
-      nextUrl = parseHttpUrl(location, current);
-    } else {
-      const html = (await response.text().catch(() => "")).slice(0, 300000);
-      const found = extractIdsFromHtml(html, current);
-      if (found.ids) {
-        return { ids: found.ids, resolvedUrl: current.href, chain };
+    for (const ua of USER_AGENTS) {
+      let response;
+      try {
+        response = await fetchHop(current.href, ua.value);
+      } catch (e) {
+        notes.push(`${ua.name}: ${e && e.name === "TimeoutError" ? "timeout" : "falha de rede"}`);
+        continue;
       }
-      if (found.next) nextUrl = parseHttpUrl(found.next, current);
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (location) {
+          nextUrl = parseHttpUrl(location, current);
+          break;
+        }
+      }
+
+      const html = (await response.text().catch(() => "")).slice(0, 400000);
+      const found = extractIdsFromHtml(html, current);
+      const scanned = found.ids || scanHtmlForIds(html);
+      if (scanned) return { ids: scanned, resolvedUrl: current.href, chain };
+
+      if (found.next) {
+        const candidate = parseHttpUrl(found.next, current);
+        if (candidate.href !== current.href) {
+          nextUrl = candidate;
+          break;
+        }
+      }
+      const title = (html.match(/<title[^>]*>([^<]{0,80})/i) || [])[1];
+      notes.push(`${ua.name}: HTTP ${response.status}${title ? ` "${title.trim()}"` : ""}`);
     }
 
     if (!nextUrl) break;
@@ -168,6 +205,7 @@ async function resolveProduct(rawUrl) {
     "Não consegui encontrar o ID da loja e do produto nesse link, nem seguindo os redirecionamentos."
   );
   error.chain = chain;
+  error.notes = notes;
   throw error;
 }
 
@@ -233,7 +271,9 @@ module.exports = async function handler(req, res) {
     resolvedProductUrl = resolved.resolvedUrl;
   } catch (error) {
     const timedOut = error && error.name === "TimeoutError";
-    const chain = error && error.chain ? ` Caminho seguido: ${error.chain.join(" → ")}` : "";
+    const chain =
+      (error && error.chain ? ` Caminho: ${error.chain.join(" → ")}.` : "") +
+      (error && error.notes && error.notes.length ? ` Respostas: ${error.notes.join("; ")}.` : "");
     return sendError(
       res,
       400,
