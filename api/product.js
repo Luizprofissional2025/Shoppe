@@ -141,6 +141,7 @@ async function resolveProduct(rawUrl) {
     });
 
     let nextUrl = null;
+    chain[chain.length - 1] += ` [HTTP ${response.status}]`;
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
