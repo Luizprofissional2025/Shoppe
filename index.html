@@ -1,11 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Gerador de Promoções</title>
-
+  <title>Gerador de Promoções Shopee</title>
   <style>
     :root {
       --orange: #f05a28;
@@ -13,13 +12,9 @@
       --ink: #202124;
       --muted: #686868;
       --bg: #f5f6f8;
-      --white: #ffffff;
-      --border: #e7e7e7;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -29,8 +24,8 @@
     }
 
     header {
-      background: var(--white);
-      border-bottom: 1px solid var(--border);
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
       padding: 18px 20px;
     }
 
@@ -47,7 +42,7 @@
       height: 45px;
       border-radius: 12px;
       background: var(--orange);
-      color: white;
+      color: #fff;
       display: grid;
       place-items: center;
       font-weight: 800;
@@ -55,14 +50,11 @@
       flex-shrink: 0;
     }
 
-    h1 {
-      font-size: 1.2rem;
-      margin: 0;
-    }
+    h1 { font-size: 1.2rem; margin: 0; }
 
     .sub {
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: .9rem;
       margin-top: 5px;
     }
 
@@ -77,38 +69,33 @@
     }
 
     .panel {
-      background: var(--white);
-      border: 1px solid var(--border);
+      background: #fff;
+      border: 1px solid #e7e7e7;
       border-radius: 16px;
       padding: 22px;
       box-shadow: 0 4px 16px #11100808;
       min-width: 0;
     }
 
-    h2 {
-      font-size: 1.05rem;
-      margin: 0 0 18px;
-    }
+    h2 { font-size: 1.05rem; margin: 0 0 18px; }
 
     label {
       display: block;
-      font-size: 0.9rem;
+      font-size: .9rem;
       font-weight: 700;
       margin: 15px 0 7px;
     }
 
-    input,
-    textarea {
+    input, textarea {
       width: 100%;
       padding: 12px 13px;
       border: 1px solid #d6d6d6;
       border-radius: 9px;
       font: inherit;
-      background: white;
+      background: #fff;
     }
 
-    input:focus,
-    textarea:focus {
+    input:focus, textarea:focus {
       outline: 2px solid #f05a2838;
       border-color: var(--orange);
     }
@@ -127,7 +114,7 @@
 
     .hint {
       color: var(--muted);
-      font-size: 0.81rem;
+      font-size: .81rem;
       line-height: 1.5;
       margin-top: 8px;
     }
@@ -137,31 +124,26 @@
       border-radius: 10px;
       padding: 12px 15px;
       font-weight: 700;
-      font-size: 0.93rem;
+      font-size: .93rem;
       cursor: pointer;
-      transition: background 0.2s, transform 0.2s;
+      transition: background .2s, transform .2s;
     }
 
-    button:hover {
-      transform: translateY(-1px);
-    }
+    button:hover { transform: translateY(-1px); }
 
     button:disabled {
-      opacity: 0.6;
+      opacity: .6;
       cursor: not-allowed;
-      transform: none;
     }
 
     .primary {
       background: var(--orange);
-      color: white;
+      color: #fff;
       width: 100%;
       margin-top: 18px;
     }
 
-    .primary:hover {
-      background: var(--orange-dark);
-    }
+    .primary:hover { background: var(--orange-dark); }
 
     .secondary {
       background: #fff1eb;
@@ -192,7 +174,7 @@
       max-width: 420px;
       height: auto;
       border-radius: 12px;
-      background: white;
+      background: #fff;
       box-shadow: 0 4px 18px #00000012;
     }
 
@@ -202,14 +184,14 @@
       border-radius: 9px;
       background: #f7f7f7;
       color: #555;
-      font-size: 0.85rem;
+      font-size: .85rem;
       line-height: 1.5;
       overflow-wrap: anywhere;
     }
 
     .section-divider {
       border: 0;
-      border-top: 1px solid #eeeeee;
+      border-top: 1px solid #eee;
       margin: 22px 0;
     }
 
@@ -218,7 +200,7 @@
       margin: 0 auto 28px;
       padding: 0 16px;
       color: #777;
-      font-size: 0.8rem;
+      font-size: .8rem;
       line-height: 1.5;
     }
 
@@ -228,9 +210,7 @@
         margin-top: 16px;
       }
 
-      .panel {
-        padding: 17px;
-      }
+      .panel { padding: 17px; }
     }
 
     @media (max-width: 420px) {
@@ -239,31 +219,18 @@
         gap: 0;
       }
 
-      .actions {
-        flex-direction: column;
-      }
-
-      .actions button {
-        width: 100%;
-      }
-
-      h1 {
-        font-size: 1.05rem;
-      }
-
-      .sub {
-        font-size: 0.82rem;
-      }
+      .actions { flex-direction: column; }
+      .actions button { width: 100%; }
+      h1 { font-size: 1.05rem; }
+      .sub { font-size: .82rem; }
     }
   </style>
 </head>
 
 <body>
-
   <header>
     <div class="header-inner">
       <div class="logo">%</div>
-
       <div>
         <h1>Gerador de Promoções</h1>
         <div class="sub">
@@ -274,85 +241,51 @@
   </header>
 
   <main>
-
-    <!-- FORMULÁRIO DO PRODUTO -->
     <section class="panel">
-
       <h2>🛍️ 1. Dados do produto</h2>
 
       <label for="url">🔗 Link de afiliado</label>
-      <input
-        id="url"
-        type="url"
-        placeholder="Cole aqui seu link de afiliado"
-      >
+      <input id="url" type="url" placeholder="Cole aqui seu link de afiliado">
 
       <label for="name">📦 Nome do produto</label>
-      <input
-        id="name"
-        type="text"
-        placeholder="Ex.: Fone Bluetooth sem fio"
-      >
+      <input id="name" type="text" maxlength="160" placeholder="Ex.: Fone Bluetooth sem fio">
 
       <label for="description">✨ Descrição do produto (opcional)</label>
       <textarea
         id="description"
         rows="3"
-        style="min-height: 80px;"
+        style="min-height:80px"
+        maxlength="500"
         placeholder="Ex.: Sem fio, bateria duradoura e ótima qualidade de som."
       ></textarea>
 
       <div class="row">
-
         <div>
           <label for="price">💰 Preço promocional (R$)</label>
-          <input
-            id="price"
-            inputmode="decimal"
-            placeholder="Ex.: 49,90"
-          >
+          <input id="price" inputmode="decimal" placeholder="Ex.: 49,90">
         </div>
 
         <div>
           <label for="oldPrice">🏷️ Preço anterior (opcional)</label>
-          <input
-            id="oldPrice"
-            inputmode="decimal"
-            placeholder="Ex.: 99,90"
-          >
+          <input id="oldPrice" inputmode="decimal" placeholder="Ex.: 99,90">
         </div>
-
       </div>
 
       <label for="photo">📸 Foto do produto (opcional)</label>
-      <input
-        id="photo"
-        type="file"
-        accept="image/*"
-      >
+      <input id="photo" type="file" accept="image/*">
 
       <div class="hint">
         Escolha uma foto do produto para incluí-la na arte promocional.
       </div>
 
-      <button class="primary" id="generate">
-        🎨 Gerar promoção
-      </button>
+      <button class="primary" id="generate">🎨 Gerar promoção</button>
 
-      <div
-        class="status"
-        id="status"
-        role="status"
-        aria-live="polite"
-      >
+      <div class="status" id="status" role="status" aria-live="polite">
         Preencha os dados e clique em “Gerar promoção”.
       </div>
-
     </section>
 
-    <!-- PRÉVIA E COMPARTILHAMENTO -->
     <section class="panel">
-
       <h2>🎨 2. Prévia da promoção</h2>
 
       <div class="preview-wrap">
@@ -366,111 +299,77 @@
 
       <div class="actions">
         <button class="primary" id="shareWhatsApp">
-          📲 Compartilhar promoção
+          📲 Preparar promoção no WhatsApp Web
         </button>
       </div>
 
       <div class="actions">
-        <button class="secondary" id="download">
-          ⬇️ Baixar imagem
-        </button>
-
-        <button class="secondary" id="copyMessage">
-          📋 Copiar mensagem
-        </button>
+        <button class="secondary" id="download">⬇️ Baixar imagem</button>
+        <button class="secondary" id="copyMessage">📋 Copiar mensagem</button>
       </div>
 
       <div class="hint">
-        O compartilhamento tenta enviar a imagem e a mensagem juntas.
-        No menu que abrir, selecione o WhatsApp e confirme o envio.
-        A disponibilidade desse recurso depende do navegador e do dispositivo.
+        No computador, o botão abre o WhatsApp Web com a mensagem e o link.
+        A imagem é baixada separadamente para você anexar na conversa.
+        O navegador não permite anexar automaticamente um arquivo local ao WhatsApp Web.
       </div>
 
       <hr class="section-divider">
 
       <h2>💬 3. Mensagem promocional</h2>
 
-      <label for="message">Prévia do texto que será compartilhado</label>
-
-      <textarea
-        id="message"
-        readonly
-        aria-label="Prévia da mensagem promocional"
-        placeholder="A mensagem será criada quando você gerar a promoção."
-      ></textarea>
+      <label for="message">Prévia do texto que será enviado</label>
+      <textarea id="message" readonly aria-label="Prévia da mensagem promocional"></textarea>
 
       <div class="hint">
-        A mensagem é atualizada automaticamente quando você gera a promoção.
-        O link de afiliado será incluído no texto.
+        O link de afiliado aparece como link clicável na mensagem do WhatsApp.
       </div>
-
     </section>
-
   </main>
 
   <footer>
-    A arte é gerada diretamente no navegador. O nome, o preço e a foto
-    precisam ser preenchidos manualmente. A importação automática de dados
-    da Shopee depende de uma integração autorizada. O compartilhamento
-    não envia mensagens automaticamente nem encaminha conteúdo para grupos.
+    Esta versão gera a arte no navegador. Nome, preço e foto são informados
+    manualmente; a leitura automática dos dados do produto depende de uma
+    integração autorizada com a Shopee. O compartilhamento não envia mensagens automaticamente.
   </footer>
 
   <script>
+    "use strict";
+
     const canvas = document.getElementById("art");
     const ctx = canvas.getContext("2d");
-
     const $ = id => document.getElementById(id);
 
     let productImage = null;
 
-    /*
-      Converte valores como 49,90 ou 1.299,90
-      para o formato monetário brasileiro.
-    */
     function parsePrice(raw) {
-      if (raw === null || raw === undefined) {
-        return null;
-      }
-
-      let value = String(raw)
+      let value = String(raw ?? "")
         .trim()
         .replace(/R\$/gi, "")
         .replace(/\s/g, "");
 
-      if (!value) {
-        return null;
-      }
+      if (!value) return null;
 
       if (value.includes(",")) {
-        value = value
-          .replace(/\./g, "")
-          .replace(",", ".");
+        value = value.replace(/\./g, "").replace(",", ".");
       }
 
       const number = Number(value);
 
-      if (!Number.isFinite(number) || number < 0) {
-        return null;
-      }
-
-      return number;
+      return Number.isFinite(number) && number >= 0
+        ? number
+        : null;
     }
 
     function money(raw) {
       const value = parsePrice(raw);
 
-      if (value === null) {
-        return "";
-      }
-
-      return value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL"
-      });
-    }
-
-    function getProductUrl() {
-      return $("url").value.trim();
+      return value === null
+        ? ""
+        : value.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+          });
     }
 
     function getDiscount() {
@@ -491,11 +390,24 @@
       );
     }
 
-    /*
-      Cria a mensagem com emojis e destaque para a oferta.
-      A frase sobre consultar preço e disponibilidade
-      não é incluída.
-    */
+    function getProductUrl() {
+      const raw = $("url").value.trim();
+
+      if (!raw) return "";
+
+      try {
+        const parsed = new URL(raw);
+
+        if (!["https:", "http:"].includes(parsed.protocol)) {
+          return null;
+        }
+
+        return parsed.href;
+      } catch {
+        return null;
+      }
+    }
+
     function buildMessage() {
       const name = $("name").value.trim();
       const description = $("description").value.trim();
@@ -505,46 +417,43 @@
       const discount = getDiscount();
 
       const lines = [
-        "🚨🔥 OFERTA IMPERDÍVEL! 🔥🚨",
+        "🚨🔥 *OFERTA IMPERDÍVEL!* 🔥🚨",
         "",
         "🛍️✨ " + (name || "Achadinho especial!"),
         ""
       ];
 
       if (description) {
-        lines.push(
-          "💎 " + description,
-          ""
-        );
+        lines.push("💎 " + description, "");
       }
 
       if (price && discount !== null) {
         lines.push(
           "❌ De: " + oldPrice,
-          "🔥 Por apenas: " + price,
-          "💥 ECONOMIZE " + discount + "%!",
+          "🔥 *POR APENAS: " + price + "*",
+          "💥 *ECONOMIZE " + discount + "%!*",
           ""
         );
       } else if (price) {
         lines.push(
-          "💰 PREÇO ESPECIAL: " + price,
+          "💰 *PREÇO ESPECIAL: " + price + "*",
           ""
         );
       }
 
       lines.push(
         "😍 Corre aproveitar essa oportunidade!",
-        "🛒 Garanta já o seu!",
+        "🛒 *Garanta já o seu!*",
         "",
-        "👇👇👇 CLIQUE AQUI PARA COMPRAR 👇👇👇",
+        "👇👇👇 *CLIQUE AQUI PARA COMPRAR* 👇👇👇",
         ""
       );
 
-      if (url) {
-        lines.push("🔗 " + url);
-      } else {
-        lines.push("🔗 Adicione seu link de afiliado.");
-      }
+      lines.push(
+        url
+          ? "🔗 " + url
+          : "🔗 Adicione seu link de afiliado."
+      );
 
       lines.push(
         "",
@@ -554,9 +463,6 @@
       return lines.join("\n");
     }
 
-    /*
-      Desenha um retângulo com cantos arredondados.
-    */
     function roundedRect(x, y, w, h, r, fill) {
       ctx.beginPath();
       ctx.roundRect(x, y, w, h, r);
@@ -564,13 +470,8 @@
       ctx.fill();
     }
 
-    /*
-      Fundo e cabeçalho da arte.
-    */
     function drawCover() {
-      const gradient = ctx.createLinearGradient(
-        0, 0, 900, 1125
-      );
+      const gradient = ctx.createLinearGradient(0, 0, 900, 1125);
 
       gradient.addColorStop(0, "#fff5ef");
       gradient.addColorStop(1, "#ffe0d1");
@@ -578,51 +479,24 @@
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 900, 1125);
 
-      roundedRect(
-        44, 44, 812, 1037, 34, "#ffffff"
-      );
+      roundedRect(44, 44, 812, 1037, 34, "#fff");
+      roundedRect(74, 74, 752, 140, 24, "#f05a28");
 
-      roundedRect(
-        74, 74, 752, 140, 24, "#f05a28"
-      );
-
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#fff";
       ctx.textAlign = "center";
       ctx.font = "800 48px Arial";
-
-      ctx.fillText(
-        "🔥 OFERTA IMPERDÍVEL!",
-        450,
-        132
-      );
+      ctx.fillText("🔥 OFERTA IMPERDÍVEL!", 450, 132);
 
       ctx.font = "bold 26px Arial";
-
-      ctx.fillText(
-        "OLHA ESSA OPORTUNIDADE",
-        450,
-        176
-      );
+      ctx.fillText("OLHA ESSA OPORTUNIDADE", 450, 176);
 
       ctx.fillStyle = "#f05a28";
       ctx.font = "bold 24px Arial";
-
-      ctx.fillText(
-        "✨ ACHADO DO DIA ✨",
-        450,
-        260
-      );
+      ctx.fillText("✨ ACHADO DO DIA ✨", 450, 260);
     }
 
-    /*
-      Ajusta a foto para caber na área reservada,
-      sem distorcer suas proporções.
-    */
     function drawImageContain(img, x, y, w, h) {
-      const scale = Math.min(
-        w / img.width,
-        h / img.height
-      );
+      const scale = Math.min(w / img.width, h / img.height);
 
       const dw = img.width * scale;
       const dh = img.height * scale;
@@ -636,9 +510,6 @@
       );
     }
 
-    /*
-      Divide o texto em linhas para caber na imagem.
-    */
     function wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
       const words = text.split(/\s+/);
       let line = "";
@@ -647,10 +518,7 @@
       for (const word of words) {
         const test = line ? line + " " + word : word;
 
-        if (
-          ctx.measureText(test).width > maxWidth &&
-          line
-        ) {
+        if (ctx.measureText(test).width > maxWidth && line) {
           lines.push(line);
           line = word;
         } else {
@@ -658,93 +526,61 @@
         }
       }
 
-      if (line) {
-        lines.push(line);
-      }
+      if (line) lines.push(line);
 
       if (lines.length > maxLines) {
         lines = lines.slice(0, maxLines);
 
-        lines[maxLines - 1] =
-          lines[maxLines - 1].replace(/[.…]*$/, "") + "…";
+        let last = lines[maxLines - 1];
+
+        while (
+          last.length > 1 &&
+          ctx.measureText(last + "…").width > maxWidth
+        ) {
+          last = last.slice(0, -1);
+        }
+
+        lines[maxLines - 1] = last + "…";
       }
 
       lines.forEach((item, index) => {
-        ctx.fillText(
-          item,
-          x,
-          y + index * lineHeight
-        );
+        ctx.fillText(item, x, y + index * lineHeight);
       });
     }
 
-    /*
-      Gera a arte promocional.
-    */
     function drawArt() {
       drawCover();
 
-      const name =
-        $("name").value.trim() || "Nome do produto";
-
-      const price =
-        money($("price").value) || "PREÇO ESPECIAL";
-
+      const name = $("name").value.trim() || "Nome do produto";
+      const price = money($("price").value) || "PREÇO ESPECIAL";
       const oldPrice = money($("oldPrice").value);
 
       if (productImage) {
-        drawImageContain(
-          productImage,
-          120, 290, 660, 440
-        );
+        drawImageContain(productImage, 120, 290, 660, 440);
       } else {
-        roundedRect(
-          120, 290, 660, 440, 22, "#fff2ec"
-        );
+        roundedRect(120, 290, 660, 440, 22, "#fff2ec");
 
         ctx.fillStyle = "#e2a58e";
         ctx.textAlign = "center";
         ctx.font = "bold 34px Arial";
-
-        ctx.fillText(
-          "FOTO DO PRODUTO",
-          450,
-          510
-        );
+        ctx.fillText("FOTO DO PRODUTO", 450, 510);
 
         ctx.font = "24px Arial";
-
-        ctx.fillText(
-          "Adicione uma foto no formulário",
-          450,
-          554
-        );
+        ctx.fillText("Adicione uma foto no formulário", 450, 554);
       }
 
       ctx.fillStyle = "#252525";
       ctx.textAlign = "center";
       ctx.font = "bold 36px Arial";
 
-      wrapText(
-        name,
-        450,
-        780,
-        700,
-        46,
-        3
-      );
+      wrapText(name, 450, 780, 700, 46, 3);
 
       if (oldPrice && oldPrice !== price) {
-        ctx.fillStyle = "#888888";
+        ctx.fillStyle = "#888";
         ctx.font = "28px Arial";
+        ctx.fillText("De " + oldPrice, 450, 905);
 
-        ctx.fillText(
-          "De " + oldPrice,
-          450,
-          905
-        );
-
-        ctx.strokeStyle = "#888888";
+        ctx.strokeStyle = "#888";
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(340, 896);
@@ -754,79 +590,49 @@
 
       ctx.fillStyle = "#f05a28";
       ctx.font = "800 62px Arial";
+      ctx.fillText(price, 450, 970);
 
-      ctx.fillText(
-        price,
-        450,
-        970
-      );
+      roundedRect(170, 1000, 560, 58, 20, "#f05a28");
 
-      roundedRect(
-        170, 1000, 560, 58, 20, "#f05a28"
-      );
-
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#fff";
       ctx.font = "bold 29px Arial";
-
-      ctx.fillText(
-        "GARANTA JÁ O SEU!",
-        450,
-        1039
-      );
+      ctx.fillText("GARANTA JÁ O SEU!", 450, 1039);
     }
 
-    /*
-      Atualiza a mensagem exibida na tela.
-    */
     function updateMessage() {
       $("message").value = buildMessage();
     }
 
-    /*
-      Valida os campos e gera a promoção.
-    */
     function generatePromotion() {
       const url = getProductUrl();
-      const name = $("name").value.trim();
 
-      if (
-        url &&
-        !/^https?:\/\/\S+/i.test(url)
-      ) {
+      if (url === null) {
         $("status").textContent =
-          "⚠️ Confira o link: ele precisa começar com https:// ou http://.";
-
+          "⚠️ Confira o link: informe um endereço HTTP ou HTTPS válido.";
         return false;
       }
 
-      if (!name) {
+      if (!$("name").value.trim()) {
         $("status").textContent =
           "⚠️ Informe o nome do produto para gerar a promoção.";
-
         return false;
       }
 
-      const rawPrice = $("price").value.trim();
-
       if (
-        rawPrice &&
-        parsePrice(rawPrice) === null
+        $("price").value.trim() &&
+        parsePrice($("price").value) === null
       ) {
         $("status").textContent =
           "⚠️ Informe um preço promocional válido.";
-
         return false;
       }
 
-      const rawOldPrice = $("oldPrice").value.trim();
-
       if (
-        rawOldPrice &&
-        parsePrice(rawOldPrice) === null
+        $("oldPrice").value.trim() &&
+        parsePrice($("oldPrice").value) === null
       ) {
         $("status").textContent =
           "⚠️ Confira o preço anterior informado.";
-
         return false;
       }
 
@@ -839,9 +645,6 @@
       return true;
     }
 
-    /*
-      Carrega a foto escolhida pelo usuário.
-    */
     $("photo").addEventListener("change", event => {
       const file = event.target.files?.[0];
 
@@ -888,101 +691,30 @@
       reader.readAsDataURL(file);
     });
 
-    /*
-      Botão para gerar a promoção.
-    */
-    $("generate").addEventListener("click", () => {
-      generatePromotion();
-    });
+    $("generate").addEventListener("click", generatePromotion);
 
-    /*
-      Atualiza a prévia da mensagem ao editar os campos.
-    */
-    [
-      "url",
-      "name",
-      "description",
-      "price",
-      "oldPrice"
-    ].forEach(id => {
+    ["url", "name", "description", "price", "oldPrice"].forEach(id => {
       $(id).addEventListener("input", updateMessage);
     });
 
-    /*
-      Compartilha imagem e texto usando o menu nativo
-      do navegador, quando houver suporte.
-    */
-    $("shareWhatsApp").addEventListener("click", async () => {
-      if (!generatePromotion()) {
-        return;
-      }
-
-      const name =
-        $("name").value.trim() || "Oferta especial";
+    // Abre o WhatsApp Web e baixa a imagem para anexar manualmente.
+    $("shareWhatsApp").addEventListener("click", () => {
+      if (!generatePromotion()) return;
 
       const message = buildMessage();
 
-      try {
-        if (
-          navigator.share &&
-          navigator.canShare
-        ) {
-          const blob = await new Promise((resolve, reject) => {
-            canvas.toBlob(result => {
-              if (result) {
-                resolve(result);
-              } else {
-                reject(
-                  new Error("Não foi possível gerar a imagem.")
-                );
-              }
-            }, "image/png");
-          });
-
-          const imageFile = new File(
-            [blob],
-            "promocao-afiliado.png",
-            { type: "image/png" }
-          );
-
-          if (
-            navigator.canShare({
-              files: [imageFile]
-            })
-          ) {
-            await navigator.share({
-              title: name,
-              text: message,
-              files: [imageFile]
-            });
-
-            $("status").textContent =
-              "✅ Menu de compartilhamento aberto. Selecione o WhatsApp e confira se a imagem e o texto foram incluídos antes de enviar.";
-
-            return;
-          }
-        }
-      } catch (error) {
-        if (error.name === "AbortError") {
-          $("status").textContent =
-            "Compartilhamento cancelado.";
-
-          return;
-        }
-
-        console.error(
-          "Erro no compartilhamento:",
-          error
-        );
-      }
-
-      /*
-        Alternativa para navegadores que não conseguem
-        compartilhar imagem e texto juntos.
-      */
       const whatsappUrl =
-        "https://wa.me/5521977041825?text=" +
+        "https://web.whatsapp.com/send?text=" +
         encodeURIComponent(message);
+
+      const link = document.createElement("a");
+
+      link.href = canvas.toDataURL("image/png");
+      link.download = "promocao-afiliado.png";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
       window.open(
         whatsappUrl,
@@ -991,16 +723,12 @@
       );
 
       $("status").textContent =
-        "📲 WhatsApp aberto com a mensagem. Neste navegador, talvez seja necessário baixar a imagem e anexá-la manualmente.";
+        "📲 O WhatsApp Web foi aberto com o texto e o link. " +
+        "A imagem foi baixada: anexe o arquivo na conversa e confirme o envio manualmente.";
     });
 
-    /*
-      Baixa a arte em PNG.
-    */
     $("download").addEventListener("click", () => {
-      if (!generatePromotion()) {
-        return;
-      }
+      if (!generatePromotion()) return;
 
       const link = document.createElement("a");
 
@@ -1013,39 +741,28 @@
         "✅ Imagem baixada com sucesso!";
     });
 
-    /*
-      Copia a mensagem promocional.
-    */
     $("copyMessage").addEventListener("click", async () => {
-      if (!generatePromotion()) {
-        return;
-      }
-
-      const message = buildMessage();
+      if (!generatePromotion()) return;
 
       try {
-        await navigator.clipboard.writeText(message);
+        await navigator.clipboard.writeText(buildMessage());
 
         $("status").textContent =
           "📋 Mensagem copiada! Agora você pode colá-la no WhatsApp.";
-      } catch (error) {
+      } catch {
         $("message").focus();
         $("message").select();
 
         const copied = document.execCommand("copy");
 
         $("status").textContent = copied
-          ? "📋 Mensagem copiada! Agora você pode colá-la no WhatsApp."
-          : "Selecione e copie manualmente o texto da mensagem.";
+          ? "📋 Mensagem copiada!"
+          : "Selecione e copie manualmente a mensagem.";
       }
     });
 
-    /*
-      Desenha uma prévia inicial ao abrir a página.
-    */
     drawArt();
     updateMessage();
   </script>
-
 </body>
 </html>
