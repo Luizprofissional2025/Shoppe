@@ -516,6 +516,7 @@
     const $ = id => document.getElementById(id);
 
     let productImage = null;
+    let tpl = null, tplBanner = null; // imagens do modelo de arte (carregam em seguida)
     let lookupBusy = false;
 
     function parsePrice(raw) {
@@ -747,6 +748,13 @@
     }
 
     function drawArtData(d, image) {
+      if (tpl && tplBanner) return drawTemplateArt(d, image);
+      return drawLegacyArt(d, image);
+    }
+
+    function drawLegacyArt(d, image) {
+      const cv = ctx.canvas;
+      if (cv.width !== 900 || cv.height !== 1125) { cv.width = 900; cv.height = 1125; }
       drawCover();
 
       const name = String(d.name || "").trim() || "Nome do produto";
@@ -795,6 +803,134 @@
       ctx.fillStyle = "#fff";
       ctx.font = "bold 29px Arial";
       ctx.fillText("GARANTA JÁ O SEU!", 450, 1039);
+    }
+
+    // ===================== Modelo de arte (assets/oferta-template.jpg) =====================
+    // Se o modelo não carregar, a arte desenhada por código (drawLegacyArt) continua sendo usada.
+    const TPL_W = 1024, TPL_H = 1536;
+    const TPL_BANNER = { x: 120, y: 1030 }; // posição do recorte original "PREÇO ESPECIAL"
+
+    function wrapLines(text, maxWidth) {
+      const words = String(text).split(/\s+/).filter(Boolean);
+      const lines = [];
+      let line = "";
+      for (const word of words) {
+        const test = line ? line + " " + word : word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+
+    function ellipsize(line, maxWidth) {
+      let last = line;
+      while (last.length > 1 && ctx.measureText(last + "…").width > maxWidth) last = last.slice(0, -1);
+      return last + "…";
+    }
+
+    // Escreve o nome ajustando o tamanho da fonte para caber na área (até 3 linhas).
+    function drawFittedName(name, cx, top, maxW, maxH) {
+      const sizes = [42, 38, 34, 31, 28, 26];
+      let size = sizes[sizes.length - 1], lines = [];
+      for (const s of sizes) {
+        ctx.font = "bold " + s + "px Arial";
+        const l = wrapLines(name, maxW);
+        size = s; lines = l;
+        if (l.length * s * 1.15 <= maxH) break;
+      }
+      const lh = size * 1.15;
+      const maxLines = Math.max(1, Math.floor(maxH / lh));
+      if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+        lines[maxLines - 1] = ellipsize(lines[maxLines - 1], maxW);
+      }
+      const startY = top + (maxH - lines.length * lh) / 2 + size * 0.88;
+      ctx.fillStyle = "#252525";
+      ctx.textAlign = "center";
+      lines.forEach((ln, i) => ctx.fillText(ln, cx, startY + i * lh));
+    }
+
+    function drawBannerPrice(price, oldPrice) {
+      const cx = 512, maxW = 640;
+      const font = size => "italic 900 " + size + "px 'Arial Black', Impact, Arial, sans-serif";
+      let size = oldPrice ? 88 : 120;
+      ctx.font = font(size);
+      while (size > 40 && ctx.measureText(price).width > maxW) { size -= 4; ctx.font = font(size); }
+      const baseline = oldPrice ? 1186 : 1172;
+
+      ctx.textAlign = "center";
+      ctx.lineJoin = "round";
+      ctx.save();
+      ctx.shadowColor = "rgba(90,0,0,.55)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 5;
+      ctx.lineWidth = Math.max(6, size * 0.11);
+      ctx.strokeStyle = "#7a0000";
+      ctx.strokeText(price, cx, baseline);
+      ctx.restore();
+      ctx.fillStyle = "#fff";
+      ctx.fillText(price, cx, baseline);
+
+      if (oldPrice) {
+        const txt = "De " + oldPrice;
+        ctx.font = "bold 32px Arial";
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.fillText(txt, cx, 1112);
+        const w = ctx.measureText(txt).width;
+        ctx.strokeStyle = "rgba(255,255,255,.92)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - w / 2 - 4, 1101);
+        ctx.lineTo(cx + w / 2 + 4, 1101);
+        ctx.stroke();
+      }
+    }
+
+    function drawTemplateArt(d, image) {
+      const cv = ctx.canvas;
+      if (cv.width !== TPL_W || cv.height !== TPL_H) { cv.width = TPL_W; cv.height = TPL_H; }
+      ctx.drawImage(tpl, 0, 0, TPL_W, TPL_H);
+
+      // Cartão da foto
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,.16)";
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetY = 6;
+      roundedRect(120, 505, 784, 405, 26, "#fff");
+      ctx.restore();
+      ctx.strokeStyle = "#eadfd3";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(120, 505, 784, 405, 26);
+      ctx.stroke();
+
+      if (image) {
+        drawImageContain(image, 138, 518, 748, 379);
+      } else {
+        ctx.fillStyle = "#c7b8ad";
+        ctx.textAlign = "center";
+        ctx.font = "bold 38px Arial";
+        ctx.fillText("FOTO DO PRODUTO", 512, 715);
+        ctx.font = "26px Arial";
+        ctx.fillText("Adicione uma foto no formulário", 512, 760);
+      }
+
+      // Nome do produto
+      drawFittedName(String(d.name || "").trim() || "Nome do produto", 512, 922, 760, 106);
+
+      // Preço (se não houver, mantém o "PREÇO ESPECIAL" original da arte)
+      const price = money(d.price);
+      const oldPrice = money(d.oldPrice);
+      if (price) {
+        drawBannerPrice(price, oldPrice && oldPrice !== price ? oldPrice : "");
+      } else {
+        ctx.drawImage(tplBanner, TPL_BANNER.x, TPL_BANNER.y);
+      }
     }
 
     function updateMessage() {
@@ -1052,6 +1188,15 @@
 
     drawArt();
     updateMessage();
+
+    // Carrega o modelo de arte; ao terminar, redesenha a prévia com ele.
+    const tplPromise = Promise.all([
+      loadImageElement("assets/oferta-template.jpg", false),
+      loadImageElement("assets/banner-preco-especial.png", false)
+    ]).then(([a, b]) => {
+      tpl = a; tplBanner = b;
+      drawArt();
+    }).catch(() => { /* sem modelo: mantém a arte desenhada por código */ });
 
     // ===================== Promoções em lote =====================
     const BATCH_MAX = 50;
@@ -1325,6 +1470,7 @@
         };
 
         const image = await loadBatchImage(product.imageUrl);
+        await tplPromise;
         renderCardArt(item, data, image);
         item.textarea.value = buildMessageData(data);
         item.name = product.name;
