@@ -429,7 +429,7 @@
     </section>
 
     <section class="panel batch-panel" id="batchPanel">
-      <h2>📦 Promoções em lote (até 20 links)</h2>
+      <h2>📦 Promoções em lote (até 50 links)</h2>
 
       <label for="batchLinks">🔗 Cole seus links de afiliado, um por linha</label>
       <textarea
@@ -475,6 +475,16 @@
             <input id="waPhone" inputmode="numeric" placeholder="Ex.: 5511999999999" style="max-width:260px;margin-top:6px">
           </li>
           <li>
+            <strong>Distribuir os envios ao longo do dia</strong> — total de horas:
+            <input id="waHours" type="number" min="0" max="48" step="0.5" value="24" style="max-width:110px;margin-top:6px">
+            <span class="hint" style="display:inline">(0 = enviar tudo em sequência, agora)</span>
+            <label style="font-weight:400;margin:8px 0 0">
+              <input type="checkbox" id="waJitter" checked style="width:auto;margin-right:6px">
+              Variar um pouco os horários (±20%), em vez de intervalos exatos
+            </label>
+            <div class="hint" id="waSchedule"></div>
+          </li>
+          <li>
             <button class="primary" id="waPrepare" type="button" style="margin-top:6px">🤖 Preparar envio automático</button>
             — copia as mensagens e abre o WhatsApp Web.
           </li>
@@ -486,7 +496,7 @@
         <button class="secondary" id="waCopyScript" type="button">📋 Copiar script (alternativa sem favoritos)</button>
         <div class="hint">
           Automação não oficial do WhatsApp Web: para o seu próprio chat o risco é baixo, mas não é zero, e mudanças no layout do WhatsApp podem exigir ajuste.
-          O script para sozinho se algo não funcionar, informando em qual mensagem parou.
+          O script para sozinho se algo não funcionar, informando em qual mensagem parou. Em envios distribuídos, a aba do WhatsApp Web precisa ficar aberta e o computador ligado, sem suspender, até o último envio.
         </div>
       </div>
 
@@ -1044,7 +1054,7 @@
     updateMessage();
 
     // ===================== Promoções em lote =====================
-    const BATCH_MAX = 20;
+    const BATCH_MAX = 50;
     const BATCH_CONCURRENCY = 3;
     const SHOPEE_HOSTS = ["shopee.com.br", "shopee.com", "shope.ee"];
     let batchItems = [];
@@ -1418,7 +1428,10 @@
     // Deve ser totalmente autocontida: não pode usar nada deste arquivo.
     function waSender() {
       const PREFIX = "PROMO-LOTE::";
-      const cfg = Object.assign({ previewWait: 4000, minGap: 3500, maxGap: 6500, confirmWait: 9000 }, window.__promoCfg || {});
+      const cfg = Object.assign(
+        { previewWait: 4000, minGap: 3500, maxGap: 6500, confirmWait: 9000, retryWait: 60000, tick: 1000 },
+        window.__promoCfg || {}
+      );
       const wait = ms => new Promise(r => setTimeout(r, ms));
       const q = sel => document.querySelector(sel);
 
@@ -1427,12 +1440,45 @@
         q('footer [contenteditable="true"][role="textbox"]') ||
         q('footer [contenteditable="true"]');
 
+      const SEND_LABELS = ["enviar", "send"];
+      const SEND_ICON = '[data-icon="send"],[data-icon^="wds-ic-send"],[data-icon*="send"],[data-testid="compose-btn-send"]';
       const getSendButton = () => {
-        const direct = q('footer button[aria-label="Enviar"]') || q('footer button[aria-label="Send"]') ||
-          q('footer [role="button"][aria-label="Enviar"]') || q('footer [role="button"][aria-label="Send"]');
-        if (direct) return direct;
-        const icon = q('footer [data-icon="send"]') || q('footer [data-icon="wds-ic-send-filled"]');
-        return icon ? icon.closest('button,[role="button"]') : null;
+        const scopes = [q("footer"), document].filter(Boolean);
+        for (const scope of scopes) {
+          for (const el of scope.querySelectorAll('button,[role="button"]')) {
+            const label = (el.getAttribute("aria-label") || "").trim().toLowerCase();
+            if (SEND_LABELS.includes(label)) return el;
+          }
+          const icon = scope.querySelector(SEND_ICON);
+          if (icon) return icon.closest('button,[role="button"]') || icon;
+        }
+        return null;
+      };
+
+      const pressEnter = el => {
+        el.focus();
+        const o = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
+        el.dispatchEvent(new KeyboardEvent("keydown", o));
+        el.dispatchEvent(new KeyboardEvent("keypress", o));
+        el.dispatchEvent(new KeyboardEvent("keyup", o));
+      };
+
+      // Lista o que existe no rodapé, para diagnóstico caso o WhatsApp tenha mudado o layout.
+      const describeFooter = () => {
+        const c = getComposer();
+        const scope = (c && (c.closest("footer") || (c.parentElement && c.parentElement.parentElement && c.parentElement.parentElement.parentElement))) || document;
+        const names = [...scope.querySelectorAll("[aria-label],[data-icon],[data-testid]")].slice(0, 14)
+          .map(e => e.getAttribute("aria-label") || e.getAttribute("data-icon") || e.getAttribute("data-testid"));
+        return names.length ? names.join(", ") : "nenhum elemento identificável";
+      };
+
+      const isSent = async () => {
+        for (let t = 0; t < cfg.confirmWait; t += 250) {
+          await wait(250);
+          const c = getComposer();
+          if (c && !(c.textContent || "").trim()) return true;
+        }
+        return false;
       };
 
       const chatTitle = () => {
@@ -1441,10 +1487,18 @@
         return (el && (el.getAttribute("title") || el.textContent) || "").trim();
       };
 
+      const fmtTime = ms => new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const fmtDur = ms => {
+        const m = Math.round(ms / 60000);
+        if (m < 1) return Math.max(1, Math.round(ms / 1000)) + " s";
+        if (m < 90) return m + " min";
+        return (ms / 3600000).toFixed(1).replace(".", ",") + " h";
+      };
+
       // Painel de progresso (sem innerHTML: o WhatsApp bloqueia).
       const box = document.createElement("div");
       box.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;background:#111b21;color:#e9edef;" +
-        "border:1px solid #25d366;border-radius:10px;padding:12px 14px;font:14px Arial;max-width:300px;box-shadow:0 4px 16px #0008";
+        "border:1px solid #25d366;border-radius:10px;padding:12px 14px;font:14px Arial;max-width:320px;box-shadow:0 4px 16px #0008";
       const line = document.createElement("div");
       const stop = document.createElement("button");
       stop.textContent = "⏹ Parar";
@@ -1453,10 +1507,11 @@
       let cancelled = false;
       stop.onclick = () => { cancelled = true; line.textContent = "Parando após a mensagem atual…"; };
       const say = t => { line.textContent = t; };
-      const finish = (t, ms) => { say(t); stop.remove(); setTimeout(() => box.remove(), ms || 12000); };
-
-      const fail = (index, reason) => {
-        finish("⚠️ Parei na mensagem " + (index + 1) + ": " + reason + (index > 0 ? " As " + index + " anteriores já foram enviadas." : " Nada foi enviado."), 60000);
+      const finish = (t, autoCloseMs) => {
+        say(t);
+        stop.textContent = "Fechar";
+        stop.onclick = () => box.remove();
+        if (autoCloseMs) setTimeout(() => box.remove(), autoCloseMs);
       };
 
       async function setText(el, text) {
@@ -1478,6 +1533,42 @@
         return (el.textContent || "").trim().length > 0;
       }
 
+      // Envia uma mensagem. Retorna null se deu certo ou o motivo da falha.
+      async function sendOne(text) {
+        const composer = getComposer();
+        if (!composer) return "a caixa de mensagem sumiu (você trocou de conversa?).";
+        if (!(await setText(composer, text))) return "não consegui escrever o texto na caixa de mensagem.";
+
+        await wait(cfg.previewWait); // tempo para o WhatsApp montar a prévia do link (foto + título)
+
+        // 1ª tentativa: botão de enviar; se não existir, tecla Enter.
+        const btn = getSendButton();
+        if (btn) btn.click(); else pressEnter(getComposer());
+        let sent = await isSent();
+
+        // 2ª tentativa com o outro método.
+        if (!sent) {
+          const c2 = getComposer();
+          if (c2 && (c2.textContent || "").trim()) {
+            if (btn) pressEnter(c2); else { const b2 = getSendButton(); if (b2) b2.click(); }
+            sent = await isSent();
+          }
+        }
+        if (sent) return null;
+        return (btn ? "o envio não foi confirmado." : "não encontrei o botão de enviar nem a tecla Enter funcionou.") +
+          " Elementos no rodapé: [" + describeFooter() + "].";
+      }
+
+      // Espera até o horário alvo, atualizando o painel a cada segundo.
+      async function sleepUntil(target, label) {
+        while (!cancelled) {
+          const left = target - Date.now();
+          if (left <= 0) return;
+          say(label(left));
+          await wait(Math.min(cfg.tick, left));
+        }
+      }
+
       (async () => {
         if (!location.hostname.endsWith("whatsapp.com")) {
           alert("Este favorito deve ser clicado na aba do WhatsApp Web (web.whatsapp.com), não aqui.");
@@ -1487,17 +1578,26 @@
         let raw = "";
         try { raw = await navigator.clipboard.readText(); } catch { /* cai no prompt */ }
         if (!raw.startsWith(PREFIX)) {
-          raw = prompt("Não consegui ler a área de transferência. Cole aqui o conteúdo copiado pelo gerador de promoções:") || "";
+          raw = prompt("Não consegui ler a área de transferência. Cole aqui (Ctrl+V) o conteúdo copiado pelo gerador de promoções e clique OK:") || "";
         }
         if (!raw.startsWith(PREFIX)) {
           alert("Nenhum lote encontrado. No gerador, clique primeiro em “Preparar envio automático”.");
           return;
         }
 
-        let messages;
-        try { messages = JSON.parse(raw.slice(PREFIX.length)); } catch { messages = null; }
-        if (!Array.isArray(messages) || !messages.length || messages.length > 20 ||
-            !messages.every(m => typeof m === "string" && m.trim() && m.length <= 4000)) {
+        let plan;
+        try { plan = JSON.parse(raw.slice(PREFIX.length)); } catch { plan = null; }
+        let messages = null, spreadMs = 0, jitter = 0;
+        if (Array.isArray(plan)) {
+          messages = plan;
+        } else if (plan && Array.isArray(plan.messages)) {
+          messages = plan.messages;
+          spreadMs = Number(plan.spreadMs) || 0;
+          jitter = Math.min(0.4, Math.max(0, Number(plan.jitter) || 0));
+        }
+        if (!messages || !messages.length || messages.length > 50 ||
+            !messages.every(m => typeof m === "string" && m.trim() && m.length <= 4000) ||
+            spreadMs < 0 || spreadMs > 48 * 3600000) {
           alert("O lote copiado é inválido. Gere e prepare o envio novamente.");
           return;
         }
@@ -1507,40 +1607,46 @@
           return;
         }
 
+        const total = messages.length;
+        const interval = spreadMs > 0 ? spreadMs / total : 0;
+        const nextGap = () => spreadMs > 0
+          ? Math.max(5000, interval * (1 + jitter * (Math.random() * 2 - 1)))
+          : cfg.minGap + Math.random() * (cfg.maxGap - cfg.minGap);
+
         const title = chatTitle() || "a conversa aberta";
-        if (!confirm("Enviar " + messages.length + " mensagem(ns) para: " + title +
-            "\n\nNão troque de conversa nem feche esta aba até terminar.")) return;
+        const plano = spreadMs > 0
+          ? "\n\nDistribuídas em " + fmtDur(spreadMs) + " (uma a cada ~" + fmtDur(interval) + "), a primeira agora e a última por volta das " +
+            fmtTime(Date.now() + interval * (total - 1)) + "." +
+            "\n\nMantenha ESTA aba do WhatsApp Web aberta e o computador ligado e sem suspender."
+          : "\n\nIntervalo de poucos segundos entre elas.";
+        if (!confirm("Enviar " + total + " mensagem(ns) para: " + title + plano + "\n\nNão troque de conversa até terminar.")) return;
 
         document.body.appendChild(box);
 
-        for (let i = 0; i < messages.length; i++) {
-          if (cancelled) { finish("⏹ Interrompido. Enviadas: " + i + " de " + messages.length + "."); return; }
-          say("Enviando " + (i + 1) + " de " + messages.length + "…");
+        for (let i = 0; i < total; i++) {
+          if (cancelled) { finish("⏹ Interrompido. Enviadas: " + i + " de " + total + "."); return; }
+          say("Enviando " + (i + 1) + " de " + total + "…");
 
-          const composer = getComposer();
-          if (!composer) return fail(i, "a caixa de mensagem sumiu (você trocou de conversa?).");
-          if (!(await setText(composer, messages[i]))) return fail(i, "não consegui escrever o texto na caixa de mensagem.");
-
-          await wait(cfg.previewWait); // tempo para o WhatsApp montar a prévia do link (foto + título)
-
-          const btn = getSendButton();
-          if (!btn) return fail(i, "não encontrei o botão de enviar (o WhatsApp pode ter mudado o layout).");
-          btn.click();
-
-          // Confirma o envio: a caixa de texto precisa esvaziar.
-          let sent = false;
-          for (let t = 0; t < cfg.confirmWait; t += 250) {
-            await wait(250);
-            const c = getComposer();
-            if (c && !(c.textContent || "").trim()) { sent = true; break; }
+          let reason = await sendOne(messages[i]);
+          if (reason && spreadMs > 0 && !cancelled) {
+            // Em envios longos, uma falha passageira não deve derrubar tudo: tenta mais uma vez.
+            await sleepUntil(Date.now() + cfg.retryWait, left => "⚠️ Falha na mensagem " + (i + 1) + ". Nova tentativa em " + fmtDur(left) + "…");
+            if (!cancelled) reason = await sendOne(messages[i]);
           }
-          if (!sent) return fail(i, "o envio não foi confirmado.");
+          if (cancelled && reason) { finish("⏹ Interrompido. Enviadas: " + i + " de " + total + "."); return; }
+          if (reason) {
+            finish("⚠️ Parei na mensagem " + (i + 1) + ": " + reason +
+              (i > 0 ? " As " + i + " anteriores já foram enviadas." : " Nada foi enviado."));
+            return;
+          }
 
-          if (i < messages.length - 1) {
-            await wait(cfg.minGap + Math.random() * (cfg.maxGap - cfg.minGap));
+          if (i < total - 1) {
+            const target = Date.now() + nextGap();
+            await sleepUntil(target, left => "✅ " + (i + 1) + " de " + total + " enviadas. Próxima (" + (i + 2) +
+              ") às " + fmtTime(target) + " — em " + fmtDur(left));
           }
         }
-        finish("✅ " + messages.length + " mensagem(ns) enviada(s)!");
+        finish("✅ " + total + " mensagem(ns) enviada(s)!", 300000);
       })();
     }
 
@@ -1556,7 +1662,40 @@
       try {
         const saved = localStorage.getItem("waPhone");
         if (saved) $("waPhone").value = saved;
+        const hours = localStorage.getItem("waHours");
+        if (hours !== null) $("waHours").value = hours;
+        const jit = localStorage.getItem("waJitter");
+        if (jit !== null) $("waJitter").checked = jit === "1";
       } catch { /* sem armazenamento: tudo bem */ }
+
+      function readHours() {
+        const h = parseFloat(String($("waHours").value).replace(",", "."));
+        return Number.isFinite(h) && h > 0 ? Math.min(h, 48) : 0;
+      }
+
+      function fmtClock(ms) {
+        return new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      }
+
+      // Pré-visualiza a agenda: com N promoções prontas e H horas, um envio a cada H/N.
+      function updateSchedulePreview() {
+        const el = $("waSchedule");
+        const n = batchItems.filter(i => i.ready).length || parseBatchLinks().filter(i => i.ok).length;
+        const h = readHours();
+        if (!n) { el.textContent = ""; return; }
+        if (!h) { el.textContent = n + " promoção(ões): enviadas em sequência, com poucos segundos entre elas."; return; }
+        const every = (h * 60) / n;
+        const everyTxt = every >= 90 ? (every / 60).toFixed(1).replace(".", ",") + " h" : Math.round(every) + " min";
+        const times = [];
+        for (let i = 0; i < n; i++) times.push(fmtClock(Date.now() + i * every * 60000));
+        el.textContent = n + " promoções em " + String(h).replace(".", ",") + " h → uma a cada ~" + everyTxt +
+          ". Horários previstos (se começar agora): " + (times.length > 8 ? times.slice(0, 6).join(", ") + " … " + times[times.length - 1] : times.join(", ")) + ".";
+      }
+
+      $("waHours").addEventListener("input", updateSchedulePreview);
+      $("batchLinks").addEventListener("input", updateSchedulePreview);
+      new MutationObserver(updateSchedulePreview).observe($("batchResults"), { childList: true, subtree: true, characterData: true });
+      updateSchedulePreview();
 
       async function copyText(text) {
         try {
@@ -1581,9 +1720,20 @@
         }
 
         const digits = $("waPhone").value.replace(/\D/g, "");
-        try { localStorage.setItem("waPhone", $("waPhone").value.trim()); } catch { /* ignora */ }
+        const hours = readHours();
+        try {
+          localStorage.setItem("waPhone", $("waPhone").value.trim());
+          localStorage.setItem("waHours", $("waHours").value);
+          localStorage.setItem("waJitter", $("waJitter").checked ? "1" : "0");
+        } catch { /* ignora */ }
 
-        const copied = await copyText("PROMO-LOTE::" + JSON.stringify(messages));
+        const plan = {
+          v: 2,
+          messages,
+          spreadMs: Math.round(hours * 3600000),
+          jitter: $("waJitter").checked ? 0.2 : 0
+        };
+        const copied = await copyText("PROMO-LOTE::" + JSON.stringify(plan));
         if (!copied) {
           batchStatus("⚠️ Não consegui copiar o lote para a área de transferência. Permita o acesso e tente de novo.");
           return;
@@ -1595,8 +1745,8 @@
         waWindow = window.open(url, "wa_promos") || waWindow;
 
         batchStatus(
-          "✅ " + messages.length + " mensagem(ns) copiada(s) e WhatsApp Web aberto. " +
-          "Agora, na aba do WhatsApp: abra a conversa de destino (ex.: “Você”) e clique no favorito “Enviar promoções”."
+          "✅ " + messages.length + " mensagem(ns) copiada(s)" + (hours ? ", agendadas em " + String(hours).replace(".", ",") + " h" : "") +
+          " e WhatsApp Web aberto. Agora, na aba do WhatsApp: abra a conversa de destino (ex.: “Você”) e clique no favorito “Enviar promoções”."
         );
       });
 
